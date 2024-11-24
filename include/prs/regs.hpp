@@ -1,0 +1,119 @@
+#pragma once
+
+#include "prs/extensions.hpp"
+#include "prs/memory.hpp"
+
+namespace prs {
+
+constexpr size_t pc_step = num_bytes_in_inst;
+constexpr size_t xlen = 32;
+
+using reg_t = int32_t;
+using ureg_t = uint32_t;
+
+inline reg_t to_reg(ureg_t r) {
+  static_assert(sizeof(reg_t) == sizeof(ureg_t));
+  return std::bit_cast<reg_t>(r);
+}
+
+inline ureg_t to_ureg(reg_t r) {
+  static_assert(sizeof(reg_t) == sizeof(ureg_t));
+  return std::bit_cast<ureg_t>(r);
+}
+
+inline addr_t to_addr(reg_t r) {
+  static_assert(sizeof(reg_t) == sizeof(addr_t));
+  return std::bit_cast<addr_t>(r);
+}
+
+enum class riscv_abi_reg_t {
+  zero = 0,
+  ra = 1,
+  sp = 2,
+  gp = 3,
+  tp = 4,
+  t0 = 5,
+  t1 = 6,
+  t2 = 7,
+  s0 = 8,
+  s1 = 9,
+  a0 = 10,
+  a1 = 11,
+  a2 = 12,
+  a3 = 13,
+  a4 = 14,
+  a5 = 15,
+  a6 = 17,
+  a7 = 17,
+  s2 = 18,
+  s3 = 19,
+  s4 = 20,
+  s5 = 21,
+  s6 = 22,
+  s7 = 23,
+  s8 = 24,
+  s9 = 25,
+  s10 = 26,
+  s11 = 27,
+  t3 = 28,
+  t4 = 29,
+  t5 = 30,
+  t6 = 31,
+};
+
+class reg_file_t final {
+public:
+  static constexpr size_t n_gpr_regs = 32;
+
+private:
+  std::array<reg_t, n_gpr_regs> regs = {0};
+  ureg_t pc = 0x0;
+  // TODO: make logger const in const methods
+  mutable logger_t logger;
+
+  void log_read(size_t reg, reg_t data) const {
+    logger << 'x' << std::setw(2) << std::left << std::setfill(' ') << reg
+           << " ==> 0x" << std::hex << std::setw(8) << std::right
+           << std::setfill('0') << data << std::dec << '\n';
+    logger.flush();
+  }
+
+  void log_write(size_t reg, reg_t data) const {
+    logger << 'x' << std::setw(2) << std::left << std::setfill(' ') << reg
+           << " <== 0x" << std::hex << std::setw(8) << std::right
+           << std::setfill('0') << data << std::dec << '\n';
+    logger.flush();
+  }
+
+public:
+  reg_file_t(enabled_extensions_t en_exts, logger_t l) : logger(std::move(l)) {}
+
+  reg_t read(size_t reg) const {
+    PRS_ASSERT(reg < nregs);
+    auto data = regs[reg];
+    log_read(reg, data);
+    return data;
+  }
+
+  reg_t read(riscv_abi_reg_t reg) const {
+    return read(static_cast<size_t>(reg));
+  }
+
+  void write(size_t reg, reg_t data) {
+    if (reg == 0)
+      return;
+    PRS_ASSERT(reg < nregs);
+    regs[reg] = data;
+    log_write(reg, data);
+  }
+
+  void write(riscv_abi_reg_t reg, reg_t data) {
+    return write(static_cast<size_t>(reg), data);
+  }
+
+  ureg_t get_pc() const { return pc; }
+
+  void set_pc(ureg_t new_pc) { pc = new_pc; }
+};
+
+} // namespace prs
