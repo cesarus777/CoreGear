@@ -1,12 +1,12 @@
 #include "prs-c/prs.h"
 
-#include "prs/sim.hpp"
+#include "prs/extensions.hpp"
+#include "prs/riscv_sim.hpp"
 
 #include "elfio/elfio.hpp"
-#include "prs/extensions.hpp"
-#include <cstdlib>
-#include <elfio/elfio_symbols.hpp>
+#include "elfio/elfio_symbols.hpp"
 
+#include <cassert>
 #include <limits>
 
 namespace {
@@ -83,163 +83,163 @@ namespace prs {
 
 class uop_processor_t {
 public:
-  static void add_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void add_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::add_op);
   }
 
-  static void sub_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sub_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::sub_op);
   }
 
-  static void or_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void or_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::or_op);
   }
 
-  static void xor_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void xor_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::xor_op);
   }
 
-  static void and_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void and_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::and_op);
   }
 
-  static void srl_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void srl_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::srl_op);
   }
 
-  static void sll_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sll_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::sll_op);
   }
 
-  static void sra_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sra_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::sra_op);
   }
 
-  static void slt_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void slt_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::slt_op);
   }
 
-  static void sltu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sltu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::sltu_op);
   }
 
-  static void addi_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void addi_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::add_op);
   }
 
-  static void ori_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void ori_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::or_op);
   }
 
-  static void xori_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void xori_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::xor_op);
   }
 
-  static void andi_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void andi_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::and_op);
   }
 
-  static void srli_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void srli_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::srl_op);
   }
 
-  static void slli_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void slli_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::sll_op);
   }
 
-  static void srai_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void srai_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_imm_arithmetic(ops, uop::sra_op);
   }
 
-  static void jalr_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void jalr_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_jalr(ops);
   }
 
-  static void lb_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lb_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_load(ops, mem_op_size_t::BYTE);
   }
 
-  static void lh_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lh_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_load(ops, mem_op_size_t::HALF);
   }
 
-  static void lw_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lw_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_load(ops, mem_op_size_t::WORD);
   }
 
-  static void lbu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lbu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_load(ops, mem_op_size_t::UBYTE);
   }
 
-  static void lhu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lhu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_load(ops, mem_op_size_t::UHALF);
   }
 
-  static void slti_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void slti_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::slt_op);
   }
 
-  static void sltiu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sltiu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_reg_arithmetic(ops, uop::sltu_op);
   }
 
-  static void ecall_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void ecall_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_ecall(ops);
   }
 
-  static void ebreak_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void ebreak_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_ebreak(ops);
   }
 
-  static void fence_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void fence_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_fence(ops);
   }
 
-  static void jal_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void jal_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_jal(ops);
   }
 
-  static void beq_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void beq_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::eq_op);
   }
 
-  static void bne_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void bne_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::ne_op);
   }
 
-  static void blt_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void blt_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::lt_op);
   }
 
-  static void bge_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void bge_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::ge_op);
   }
 
-  static void bltu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void bltu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::ltu_op);
   }
 
-  static void bgeu_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void bgeu_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_branch(ops, uop::geu_op);
   }
 
-  static void sb_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sb_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_store(ops, mem_op_size_t::BYTE);
   }
 
-  static void sh_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sh_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_store(ops, mem_op_size_t::HALF);
   }
 
-  static void sw_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void sw_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_store(ops, mem_op_size_t::WORD);
   }
 
-  static void lui_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void lui_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_lui(ops);
   }
 
-  static void auipc_func(simulator_t &sim, std::span<const operand_t> ops) {
+  static void auipc_func(simulator_t &sim, std::span<const riscv_operand_t> ops) {
     sim.exec_auipc(ops);
   }
 };
@@ -248,7 +248,7 @@ public:
 
 const std::unordered_map<prs::opcode_t,
                          void (*)(prs::simulator_t &,
-                                  std::span<const prs::operand_t>)>
+                                  std::span<const prs::riscv_operand_t>)>
     prs::simulator_t::i_opc_actions = {
         {prs::opcode_t::ADD, prs::uop_processor_t::add_func},
         {prs::opcode_t::SUB, prs::uop_processor_t::sub_func},
@@ -294,10 +294,10 @@ const std::unordered_map<prs::opcode_t,
 
 const std::unordered_map<prs::opcode_t,
                          void (*)(prs::simulator_t &,
-                                  std::span<const prs::operand_t>)>
+                                  std::span<const prs::riscv_operand_t>)>
     prs::simulator_t::c_opc_actions = {};
 
 const std::unordered_map<prs::opcode_t,
                          void (*)(prs::simulator_t &,
-                                  std::span<const prs::operand_t>)>
+                                  std::span<const prs::riscv_operand_t>)>
     prs::simulator_t::m_opc_actions = {};
