@@ -47,7 +47,6 @@ public:
   }
 
   auto begin() const { return en_exts.begin(); }
-
   auto end() const { return en_exts.end(); }
 
   auto size() const noexcept { return en_exts.size(); }
