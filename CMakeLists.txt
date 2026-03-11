@@ -13,3 +13,8 @@ project (CoreGear VERSION 0.1)
 set(CG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(coregear)
+
+if (CG_ENABLE_TESTING)
+  include(CTest)
+  add_subdirectory(test)
+endif()
