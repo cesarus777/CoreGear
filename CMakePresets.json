@@ -1,0 +1,51 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "displayName": "Base config",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_COLOR_DIAGNOSTICS": "ON"
+      }
+    },
+    {
+      "name": "base_clang",
+      "displayName": "Base config with clang compiler",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "with_tests",
+      "hidden": true,
+      "cacheVariables": {
+        "CG_ENABLE_TESTING": "ON"
+      }
+    },
+    {
+      "name": "base_with_tests",
+      "displayName": "Base config with tests",
+      "inherits": [
+        "base",
+        "with_tests"
+      ]
+    },
+    {
+      "name": "base_clang_with_tests",
+      "displayName": "Base config with clang compiler and tests",
+      "inherits": [
+        "base",
+        "with_tests"
+      ]
+    }
+  ]
+}
