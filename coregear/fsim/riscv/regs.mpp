@@ -1,20 +1,38 @@
-#pragma once
+module;
 
-#include "coregear/extensions.hpp"
-#include "coregear/memory.hpp"
+#include <coregear/utility/assert.hpp>
 
-namespace cg {
+export module coregear.fsim.riscv:regs;
+
+import :extensions;
+
+import coregear.fsim.memory;
+
+import coregear.common;
+import coregear.utility;
+
+import std;
+
+export namespace cg::riscv {
+
+constexpr size_t bytes_in_word = 4;
+constexpr size_t bits_in_byte = 8;
+constexpr size_t num_bytes_in_inst = 4;
+constexpr size_t num_bits_in_inst = bits_in_byte * num_bytes_in_inst;
+
+constexpr size_t host_byte_bits = char_bits;
+
+static_assert(num_bits_in_inst == sizeof(word_t) * host_byte_bits);
 
 constexpr size_t pc_step = num_bytes_in_inst;
 constexpr size_t xlen = 32;
 
-using reg_t = int32_t;
-using ureg_t = uint32_t;
+using reg_t = word_t;
+using ureg_t = uword_t;
 
-inline reg_t to_reg(ureg_t r) {
-  static_assert(sizeof(reg_t) == sizeof(ureg_t));
-  return std::bit_cast<reg_t>(r);
-}
+static_assert(sizeof(reg_t) == sizeof(ureg_t));
+
+inline reg_t to_reg(ureg_t r) { return std::bit_cast<reg_t>(r); }
 
 inline ureg_t to_ureg(reg_t r) {
   static_assert(sizeof(reg_t) == sizeof(ureg_t));
@@ -26,7 +44,7 @@ inline addr_t to_addr(reg_t r) {
   return std::bit_cast<addr_t>(r);
 }
 
-enum class riscv_abi_reg_t {
+enum class abi_reg_t {
   zero = 0,
   ra = 1,
   sp = 2,
@@ -89,25 +107,25 @@ public:
   reg_file_t(enabled_extensions_t en_exts, logger_t l) : logger(std::move(l)) {}
 
   reg_t read(size_t reg) const {
-    CG_ASSERT(reg < nregs);
+    CG_ASSERT(reg < n_gpr_regs);
     auto data = regs[reg];
     log_read(reg, data);
     return data;
   }
 
-  reg_t read(riscv_abi_reg_t reg) const {
+  reg_t read(abi_reg_t reg) const {
     return read(static_cast<size_t>(reg));
   }
 
   void write(size_t reg, reg_t data) {
     if (reg == 0)
       return;
-    CG_ASSERT(reg < nregs);
+    CG_ASSERT(reg < n_gpr_regs);
     regs[reg] = data;
     log_write(reg, data);
   }
 
-  void write(riscv_abi_reg_t reg, reg_t data) {
+  void write(abi_reg_t reg, reg_t data) {
     return write(static_cast<size_t>(reg), data);
   }
 
@@ -116,4 +134,4 @@ public:
   void set_pc(ureg_t new_pc) { pc = new_pc; }
 };
 
-} // namespace cg
+} // namespace cg::riscv

@@ -1,0 +1,9 @@
+module;
+
+#include <climits>
+
+export module coregear.common:char_bits;
+
+namespace cg {
+export constexpr int char_bits = CHAR_BIT;
+} // namespace cg

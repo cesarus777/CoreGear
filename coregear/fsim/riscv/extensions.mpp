@@ -1,30 +1,29 @@
-#pragma once
+export module coregear.fsim.riscv:extensions;
 
-#include "coregear/exceptions.hpp"
+import coregear.common;
 
-#include <algorithm>
-#include <set>
-#include <string_view>
-#include <unordered_map>
+import std;
 
-namespace cg {
+namespace cg::riscv {
 
-#define CG_ALL_EXTENSIONS(X)                                                  \
+#define CG_FSIM_RISCV_ALL_EXTENSIONS(X)                                        \
   X(I, i, 0)                                                                   \
   X(C, c, 1)                                                                   \
   X(M, m, 2)
 
 enum class extensions_t : size_t {
-#define ENUM_ITEM(enumerator, str, num) enumerator = num,
-  CG_ALL_EXTENSIONS(ENUM_ITEM)
-#undef ENUM_ITEM
+#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+  enumerator = num,
+  CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
 };
 
 #define ADD_ONE(enumerator, str, num) +1
 
-constexpr size_t num_supported_extensions = CG_ALL_EXTENSIONS(ADD_ONE);
+constexpr size_t num_supported_extensions =
+    CG_FSIM_RISCV_ALL_EXTENSIONS(ADD_ONE);
 
-class enabled_extensions_t final {
+export class enabled_extensions_t final {
   using extensions_storage_t = std::set<extensions_t>;
   extensions_storage_t en_exts;
 
@@ -52,4 +51,20 @@ public:
   auto size() const noexcept { return en_exts.size(); }
 };
 
-} // namespace cg
+const std::unordered_map<extensions_t, std::string>
+    enabled_extensions_t::ExtToStr = {
+#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+  {extensions_t::enumerator, #str},
+        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
+};
+
+const std::unordered_map<std::string, extensions_t>
+    enabled_extensions_t::StrToExt = {
+#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+  {#str, extensions_t::enumerator},
+        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
+};
+
+} // namespace cg::riscv

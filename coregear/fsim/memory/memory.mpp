@@ -1,34 +1,26 @@
-#pragma once
+module;
 
-#include "coregear/exceptions.hpp"
-#include "coregear/logger.hpp"
+#include <coregear/utility/assert.hpp>
 
-#include <climits>
-#include <cstddef>
-#include <cstring>
-#include <filesystem>
-#include <iomanip>
-#include <vector>
+export module coregear.fsim.memory;
 
-namespace cg {
+import coregear.common;
+import coregear.utility;
 
-using addr_t = uint32_t;
+import std;
 
-using byte_t = int8_t;
-using half_t = int16_t;
-using word_t = int32_t;
-using ubyte_t = uint8_t;
-using uhalf_t = uint16_t;
-using uword_t = uint32_t;
+export namespace cg {
 
-constexpr size_t riscv_bytes_in_word = 4;
-constexpr size_t riscv_bits_in_byte = 8;
-constexpr size_t num_bytes_in_inst = 4;
-constexpr size_t num_bits_in_inst = riscv_bits_in_byte * num_bytes_in_inst;
+using byte_t = std::int8_t;
+using half_t = std::int16_t;
+using word_t = std::int32_t;
+using dword_t = std::int64_t;
+using ubyte_t = std::uint8_t;
+using uhalf_t = std::uint16_t;
+using uword_t = std::uint32_t;
+using udword_t = std::uint64_t;
 
-constexpr size_t host_byte_bits = CHAR_BIT;
-
-static_assert(num_bits_in_inst == sizeof(word_t) * host_byte_bits);
+using addr_t = uword_t;
 
 class memory_t final {
   using cell_t = unsigned long long;
@@ -60,7 +52,7 @@ class memory_t final {
     storage.resize(storage_idx + 1, 0);
   }
 
-  static constexpr size_t hex_addr_width = hex_width<addr_t>;
+  static constexpr size_t hex_addr_width = logger_t::hex_width<addr_t>;
 
   enum class mem_access_t { READ, WRITE };
 
@@ -79,8 +71,8 @@ class memory_t final {
   void log_mem_access(addr_t addr, data_t data, mem_access_t access_type) {
     auto access_str = mem_access_to_string(access_type);
     logger << "[mem:0x" << std::hex << std::setw(hex_addr_width) << addr << "]"
-           << access_str << "0x" << std::setw(hex_width<data_t>) << data
-           << std::dec << "\n";
+           << access_str << "0x" << std::setw(logger_t::hex_width<data_t>)
+           << data << std::dec << "\n";
     logger.flush();
   }
 

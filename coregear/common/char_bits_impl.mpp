@@ -1,0 +1,19 @@
+export module coregear.common:char_bits_impl;
+
+namespace cg {
+
+namespace detail {
+export template <typename T> struct char_bits_impl_t {};
+
+export template <> struct char_bits_impl_t<void> {
+  static constexpr int value;
+}
+} // namespace detail
+
+} // namespace cg
+
+#include <climits>
+
+template <> struct cg::detail::char_bits_impl_t<void> {
+  int value = CHAR_BIT;
+};

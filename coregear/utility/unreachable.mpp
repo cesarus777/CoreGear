@@ -1,0 +1,16 @@
+export module coregear.utility:unreachable;
+
+import std;
+
+namespace cg {
+
+export [[noreturn]] void unreachable(std::string_view file_name, int line,
+                                     std::optional<std::string_view> msg = {}) {
+  std::cerr << std::format("{}:{}: unreachable reached", file_name, line);
+  if (msg)
+    std::cerr << std::format(": {}", *msg);
+  std::cerr << std::endl;
+  std::terminate();
+}
+
+} // namespace cg

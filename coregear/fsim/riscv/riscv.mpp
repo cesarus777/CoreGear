@@ -1,30 +1,25 @@
-#pragma once
+module;
 
-#include "coregear/extensions.hpp"
-#include "coregear/memory.hpp"
-#include "coregear/regs.hpp"
-#include "coregear/sim.hpp"
+#include <coregear/utility/assert.hpp>
+#include <coregear/utility/unreachable.hpp>
 
-#include <unistd.h>
+export module coregear.fsim.riscv;
 
-#include <array>
-#include <bit>
-#include <bitset>
-#include <cassert>
-#include <concepts>
-#include <initializer_list>
-#include <iomanip>
-#include <iostream>
-#include <ranges>
-#include <unordered_map>
-#include <utility>
-#include <variant>
+export import :extensions;
+export import :regs;
 
-namespace cg {
+import coregear.fsim.sim;
 
-using inst_t = uint32_t;
+import coregear.common;
+import coregear.utility;
 
-enum class riscv_opcode_t {
+import std;
+
+namespace cg::riscv {
+
+using inst_t = word_t;
+
+enum class opcode_t {
   // arithmetic
   ADD,
   SUB,
@@ -115,68 +110,68 @@ using opcode_encoding_t = funct_t<7, 0>;
 inline constexpr auto no_funct3 = funct3(no_funct);
 inline constexpr auto no_funct7 = funct7(no_funct);
 
-inline consteval opcode_encoding_t opcode_bits(riscv_opcode_t opcode) {
+inline consteval opcode_encoding_t opcode_bits(opcode_t opcode) {
   switch (opcode) {
-  case riscv_opcode_t::ADD:
-  case riscv_opcode_t::SUB:
-  case riscv_opcode_t::OR:
-  case riscv_opcode_t::XOR:
-  case riscv_opcode_t::AND:
-  case riscv_opcode_t::SRL:
-  case riscv_opcode_t::SLL:
-  case riscv_opcode_t::SRA:
-  case riscv_opcode_t::SLT:
-  case riscv_opcode_t::SLTU:
+  case opcode_t::ADD:
+  case opcode_t::SUB:
+  case opcode_t::OR:
+  case opcode_t::XOR:
+  case opcode_t::AND:
+  case opcode_t::SRL:
+  case opcode_t::SLL:
+  case opcode_t::SRA:
+  case opcode_t::SLT:
+  case opcode_t::SLTU:
     return 0b0110011u;
-  case riscv_opcode_t::ADDI:
-  case riscv_opcode_t::ORI:
-  case riscv_opcode_t::XORI:
-  case riscv_opcode_t::ANDI:
-  case riscv_opcode_t::SRLI:
-  case riscv_opcode_t::SLLI:
-  case riscv_opcode_t::SRAI:
-  case riscv_opcode_t::SLTI:
-  case riscv_opcode_t::SLTIU:
+  case opcode_t::ADDI:
+  case opcode_t::ORI:
+  case opcode_t::XORI:
+  case opcode_t::ANDI:
+  case opcode_t::SRLI:
+  case opcode_t::SLLI:
+  case opcode_t::SRAI:
+  case opcode_t::SLTI:
+  case opcode_t::SLTIU:
     return 0b0010011u;
-  case riscv_opcode_t::JAL:
+  case opcode_t::JAL:
     return 0b1101111u;
-  case riscv_opcode_t::JALR:
+  case opcode_t::JALR:
     return 0b1100111u;
-  case riscv_opcode_t::LB:
-  case riscv_opcode_t::LH:
-  case riscv_opcode_t::LW:
-  case riscv_opcode_t::LBU:
-  case riscv_opcode_t::LHU:
+  case opcode_t::LB:
+  case opcode_t::LH:
+  case opcode_t::LW:
+  case opcode_t::LBU:
+  case opcode_t::LHU:
     return 0b0000011u;
-  case riscv_opcode_t::ECALL:
-  case riscv_opcode_t::EBREAK:
+  case opcode_t::ECALL:
+  case opcode_t::EBREAK:
     return 0b1110011u;
-  case riscv_opcode_t::FENCE:
+  case opcode_t::FENCE:
     return 0b0001111u;
-  case riscv_opcode_t::BEQ:
-  case riscv_opcode_t::BNE:
-  case riscv_opcode_t::BLT:
-  case riscv_opcode_t::BGE:
-  case riscv_opcode_t::BLTU:
-  case riscv_opcode_t::BGEU:
+  case opcode_t::BEQ:
+  case opcode_t::BNE:
+  case opcode_t::BLT:
+  case opcode_t::BGE:
+  case opcode_t::BLTU:
+  case opcode_t::BGEU:
     return 0b1100011u;
-  case riscv_opcode_t::SB:
-  case riscv_opcode_t::SH:
-  case riscv_opcode_t::SW:
+  case opcode_t::SB:
+  case opcode_t::SH:
+  case opcode_t::SW:
     return 0b0100011u;
-  case riscv_opcode_t::LUI:
+  case opcode_t::LUI:
     return 0b0110111u;
-  case riscv_opcode_t::AUIPC:
+  case opcode_t::AUIPC:
     return 0b0010111u;
-  case riscv_opcode_t::CSRRW:
-  case riscv_opcode_t::CSRRS:
-  case riscv_opcode_t::CSRRC:
-  case riscv_opcode_t::CSRRWI:
-  case riscv_opcode_t::CSRRSI:
-  case riscv_opcode_t::CSRRCI:
+  case opcode_t::CSRRW:
+  case opcode_t::CSRRS:
+  case opcode_t::CSRRC:
+  case opcode_t::CSRRWI:
+  case opcode_t::CSRRSI:
+  case opcode_t::CSRRCI:
     return 0b1110011u;
   default:
-    assert(false);
+    throw unknown_opcode(opcode);
   }
 };
 
@@ -192,74 +187,66 @@ enum class encoding_t {
   CSRITYPE,
 };
 
-inline constexpr encoding_t encoding4opcode(riscv_opcode_t opcode) {
+inline constexpr encoding_t encoding4opcode(opcode_t opcode) {
   switch (opcode) {
-  case riscv_opcode_t::ADD:
-  case riscv_opcode_t::SUB:
-  case riscv_opcode_t::OR:
-  case riscv_opcode_t::XOR:
-  case riscv_opcode_t::AND:
-  case riscv_opcode_t::SRL:
-  case riscv_opcode_t::SLL:
-  case riscv_opcode_t::SRA:
-  case riscv_opcode_t::SLT:
-  case riscv_opcode_t::SLTU:
+  case opcode_t::ADD:
+  case opcode_t::SUB:
+  case opcode_t::OR:
+  case opcode_t::XOR:
+  case opcode_t::AND:
+  case opcode_t::SRL:
+  case opcode_t::SLL:
+  case opcode_t::SRA:
+  case opcode_t::SLT:
+  case opcode_t::SLTU:
     return encoding_t::RTYPE;
-  case riscv_opcode_t::ADDI:
-  case riscv_opcode_t::ORI:
-  case riscv_opcode_t::XORI:
-  case riscv_opcode_t::ANDI:
-  case riscv_opcode_t::SRLI:
-  case riscv_opcode_t::SLLI:
-  case riscv_opcode_t::SRAI:
-  case riscv_opcode_t::JALR:
-  case riscv_opcode_t::LB:
-  case riscv_opcode_t::LH:
-  case riscv_opcode_t::LW:
-  case riscv_opcode_t::LBU:
-  case riscv_opcode_t::LHU:
-  case riscv_opcode_t::SLTI:
-  case riscv_opcode_t::SLTIU:
-  case riscv_opcode_t::FENCE:
+  case opcode_t::ADDI:
+  case opcode_t::ORI:
+  case opcode_t::XORI:
+  case opcode_t::ANDI:
+  case opcode_t::SRLI:
+  case opcode_t::SLLI:
+  case opcode_t::SRAI:
+  case opcode_t::JALR:
+  case opcode_t::LB:
+  case opcode_t::LH:
+  case opcode_t::LW:
+  case opcode_t::LBU:
+  case opcode_t::LHU:
+  case opcode_t::SLTI:
+  case opcode_t::SLTIU:
+  case opcode_t::FENCE:
     return encoding_t::ITYPE;
-  case riscv_opcode_t::JAL:
+  case opcode_t::JAL:
     return encoding_t::JTYPE;
-  case riscv_opcode_t::BEQ:
-  case riscv_opcode_t::BNE:
-  case riscv_opcode_t::BLT:
-  case riscv_opcode_t::BGE:
-  case riscv_opcode_t::BLTU:
-  case riscv_opcode_t::BGEU:
+  case opcode_t::BEQ:
+  case opcode_t::BNE:
+  case opcode_t::BLT:
+  case opcode_t::BGE:
+  case opcode_t::BLTU:
+  case opcode_t::BGEU:
     return encoding_t::BTYPE;
-  case riscv_opcode_t::SB:
-  case riscv_opcode_t::SH:
-  case riscv_opcode_t::SW:
+  case opcode_t::SB:
+  case opcode_t::SH:
+  case opcode_t::SW:
     return encoding_t::STYPE;
-  case riscv_opcode_t::LUI:
-  case riscv_opcode_t::AUIPC:
+  case opcode_t::LUI:
+  case opcode_t::AUIPC:
     return encoding_t::UTYPE;
-  case riscv_opcode_t::ECALL:
-  case riscv_opcode_t::EBREAK:
+  case opcode_t::ECALL:
+  case opcode_t::EBREAK:
     return encoding_t::SYSTYPE;
-  case riscv_opcode_t::CSRRW:
-  case riscv_opcode_t::CSRRS:
-  case riscv_opcode_t::CSRRC:
+  case opcode_t::CSRRW:
+  case opcode_t::CSRRS:
+  case opcode_t::CSRRC:
     return encoding_t::CSRTYPE;
-  case riscv_opcode_t::CSRRWI:
-  case riscv_opcode_t::CSRRSI:
-  case riscv_opcode_t::CSRRCI:
+  case opcode_t::CSRRWI:
+  case opcode_t::CSRRSI:
+  case opcode_t::CSRRCI:
     return encoding_t::CSRITYPE;
   default:
-    assert(false);
+    throw unknown_opcode(opcode);
   }
-}
-
-template <class... ts_t> struct overloaded_t final : ts_t... {
-  using ts_t::operator()...;
-};
-
-template <class... ts_t> auto overloaded(ts_t &&...ts) {
-  return overloaded_t{std::forward<ts_t>(ts)...};
 }
 
 class reg_operand_info_t {
@@ -270,22 +257,20 @@ public:
 
   auto is_dst() const noexcept { return dst; }
 };
-CG_EXPECT_OPERAND_INFO_IMPL(reg_operand_info_t);
 
 class imm_operand_info_t {
 public:
   imm_operand_info_t() noexcept {}
 };
-CG_EXPECT_OPERAND_INFO_IMPL(imm_operand_info_t);
 
 class csr_operand_info_t {
 public:
   csr_operand_info_t() noexcept {}
 };
-CG_EXPECT_OPERAND_INFO_IMPL(csr_operand_info_t);
 
-using riscv_operand_info_t =
-    operand_info_t<reg_operand_info_t, imm_operand_info_t, csr_operand_info_t>;
+using operand_info_t =
+    cg::operand_info_t<reg_operand_info_t, imm_operand_info_t,
+                       csr_operand_info_t>;
 
 class reg_operand_t final : private reg_operand_info_t {
 public:
@@ -297,14 +282,13 @@ private:
 public:
   reg_operand_t(reg_operand_info_t op_info, size_t reg_num)
       : reg_operand_info_t(op_info), reg(reg_num) {
-    assert(reg_num < reg_file_t::n_gpr_regs);
+    CG_ASSERT(reg_num < reg_file_t::n_gpr_regs);
   }
 
   auto get_reg() const { return reg; }
 
   using reg_operand_info_t::is_dst;
 };
-CG_EXPECT_OPERAND_IMPL(reg_operand_t);
 
 class imm_operand_t final : private imm_operand_info_t {
 public:
@@ -319,7 +303,6 @@ public:
 
   auto imm() const noexcept { return imm_data; }
 };
-CG_EXPECT_OPERAND_IMPL(imm_operand_t);
 
 enum class csr_t {};
 
@@ -336,9 +319,8 @@ public:
 
   auto csr() const noexcept { return csr_data; }
 };
-CG_EXPECT_OPERAND_IMPL(csr_operand_t);
 
-using riscv_operand_t = operand_t<reg_operand_t, imm_operand_t, csr_operand_t>;
+using operand_t = cg::operand_t<reg_operand_t, imm_operand_t, csr_operand_t>;
 
 class reg_operand_matcher_t {
 public:
@@ -423,7 +405,8 @@ public:
 
   reg_t extract(inst_t inst) const {
     reg_t imm = 0;
-    for (auto [tgt_idx, src_idx] : bit_mapping | std::views::enumerate)
+    // for (auto [tgt_idx, src_idx] : bit_mapping | std::views::enumerate)
+    for (auto [tgt_idx, src_idx] : std::ranges::enumerate_view(bit_mapping))
       imm = set_bit(imm, tgt_idx, get_bit(inst, src_idx));
     return imm;
   }
@@ -526,39 +509,45 @@ public:
   }
 };
 
-CG_EXPECT_OPERAND_MATCHER_IMPL(reg_operand_matcher_t);
-CG_EXPECT_OPERAND_MATCHER_IMPL(imm_operand_matcher_t);
-CG_EXPECT_OPERAND_MATCHER_IMPL(csr_operand_matcher_t);
+using operand_matcher_t =
+    cg::operand_matcher_t<reg_operand_matcher_t, imm_operand_matcher_t,
+                          csr_operand_matcher_t>;
 
-using riscv_operand_matcher_t =
-    operand_matcher_t<reg_operand_matcher_t, imm_operand_matcher_t,
-                      csr_operand_matcher_t>;
+} // namespace cg::riscv
 
-#define CG_RISCV_MAP_OP_INFO_TO_OP(op_info, op, matcher)                      \
-  template <> struct op_info_traits<op_info> {                                 \
-    using op_type = op;                                                        \
-    using matcher_type = matcher;                                              \
+#define CG_RISCV_MAP_OP_INFO_TO_OP(op_info, op, matcher)                       \
+  template <> struct cg::op_info_traits<cg::riscv::op_info> {                  \
+    using op_type = cg::riscv::op;                                             \
+    using matcher_type = cg::riscv::matcher;                                   \
   }
 
 CG_RISCV_MAP_OP_INFO_TO_OP(reg_operand_info_t, reg_operand_t,
-                            reg_operand_matcher_t);
+                           reg_operand_matcher_t);
 CG_RISCV_MAP_OP_INFO_TO_OP(imm_operand_info_t, imm_operand_t,
-                            imm_operand_matcher_t);
+                           imm_operand_matcher_t);
 CG_RISCV_MAP_OP_INFO_TO_OP(csr_operand_info_t, csr_operand_t,
-                            csr_operand_matcher_t);
+                           csr_operand_matcher_t);
 
-struct riscv_operand_description_tr {
-  using op_info_t = riscv_operand_info_t;
-  using op_t = riscv_operand_t;
-  using op_matcher_t = riscv_operand_matcher_t;
+#undef CG_RISCV_MAP_OP_INFO_TO_OP
+
+namespace cg::riscv {
+
+struct operand_description_tr {
+  using op_info_t = operand_info_t;
+  using op_t = operand_t;
+  using op_matcher_t = operand_matcher_t;
+
+  using per_enc_t = std::unordered_map<
+      encoding_id_t,
+      std::vector<cg::operand_description_t<operand_description_tr>>>;
+
+  static const per_enc_t per_enc;
 };
 
-using riscv_operand_description_t =
-    operand_description_t<riscv_operand_description_tr>;
+using operand_description_t = cg::operand_description_t<operand_description_tr>;
 
-template <>
-inline const typename riscv_operand_description_t::per_enc_t
-    riscv_operand_description_t::per_enc = {
+inline const typename operand_description_tr::per_enc_t
+    operand_description_tr::per_enc = {
         {static_cast<encoding_id_t>(encoding_t::RTYPE),
          {
              {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
@@ -614,36 +603,43 @@ inline const typename riscv_operand_description_t::per_enc_t
          }},
 };
 
-inline std::vector<riscv_operand_description_t>
+inline std::vector<operand_description_t>
 descriptions4encoding(encoding_t enc) {
-  auto &descs = riscv_operand_description_t::per_enc;
+  auto &descs = operand_description_t::traits_t::per_enc;
   auto it = descs.find(static_cast<encoding_id_t>(enc));
-  assert(it != descs.end());
+  CG_ASSERT(it != descs.end(),
+            "Operand descriptions for specified encoding wasn't found");
   return it->second;
 }
 
-template <> struct opcode_traits<riscv_opcode_t>;
+} // namespace cg::riscv
 
-using riscv_decoded_inst_t = decoded_inst_t<riscv_opcode_t, riscv_operand_t>;
+template <> struct cg::opcode_traits<cg::riscv::opcode_t>;
 
-template <> struct op_traits<riscv_operand_t> {
+namespace cg::riscv {
+using decoded_inst_t = cg::decoded_inst_t<opcode_t, operand_t>;
+} // namespace cg::riscv
+
+template <> struct cg::op_traits<cg::riscv::operand_t> {
   static auto print_visitor(auto &&l) {
-    return overloaded([&](reg_operand_t reg) { l << "\tx" << reg.get_reg(); },
-                      [&](imm_operand_t imm) { l << '\t' << imm.imm(); },
-                      [&](csr_operand_t csr) { l << "\tCSR"; });
+    return utils::overloaded(
+        [&](cg::riscv::reg_operand_t reg) { l << "\tx" << reg.get_reg(); },
+        [&](cg::riscv::imm_operand_t imm) { l << '\t' << imm.imm(); },
+        [&](cg::riscv::csr_operand_t csr) { l << "\tCSR"; });
   }
 };
 
-class riscv_opcode_matcher_t final {
+namespace cg::riscv {
+class opcode_matcher_t final {
   inst_t filter_mask;
   inst_t match_mask;
 
 public:
-  consteval riscv_opcode_matcher_t(inst_t inst) noexcept
+  consteval opcode_matcher_t(inst_t inst) noexcept
       : filter_mask(~static_cast<inst_t>(0)), match_mask(inst) {}
 
-  consteval riscv_opcode_matcher_t(opcode_encoding_t opcode, funct3 f3,
-                                   funct7 f7) noexcept
+  consteval opcode_matcher_t(opcode_encoding_t opcode, funct3 f3,
+                             funct7 f7) noexcept
       : filter_mask(opcode.filter() | f3.filter() | f7.filter()),
         match_mask(opcode | f3 | f7) {}
 
@@ -651,17 +647,15 @@ public:
     return (inst & filter_mask) == match_mask;
   }
 
-  static const std::unordered_map<riscv_opcode_t, riscv_opcode_matcher_t>
-      per_opc;
+  static const std::unordered_map<opcode_t, opcode_matcher_t> per_opc;
 };
 
-static_assert(opcode_matcher_c<riscv_opcode_matcher_t, inst_t>);
+static_assert(opcode_matcher_c<opcode_matcher_t, inst_t>);
 
-inline const std::unordered_map<riscv_opcode_t, riscv_opcode_matcher_t>
-    riscv_opcode_matcher_t::per_opc = {
-#define CG_REGISTER_OPCODE(opc, f3, f7)                                       \
-  {riscv_opcode_t::opc,                                                        \
-   riscv_opcode_matcher_t(opcode_bits(riscv_opcode_t::opc), (f3), (f7))}
+inline const std::unordered_map<opcode_t, opcode_matcher_t>
+    opcode_matcher_t::per_opc = {
+#define CG_REGISTER_OPCODE(opc, f3, f7)                                        \
+  {opcode_t::opc, opcode_matcher_t(opcode_bits(opcode_t::opc), (f3), (f7))}
 
         // arithmetic
         CG_REGISTER_OPCODE(ADD, 0b000u, 0b0000000u),
@@ -708,9 +702,9 @@ inline const std::unordered_map<riscv_opcode_t, riscv_opcode_matcher_t>
         CG_REGISTER_OPCODE(AUIPC, no_funct3, no_funct7),
         // special ones
         CG_REGISTER_OPCODE(FENCE, 0b010u, 0b0000000u),
-        {riscv_opcode_t::ECALL, riscv_opcode_matcher_t(0b1110011)},
-        {riscv_opcode_t::EBREAK,
-         riscv_opcode_matcher_t(0b00000000000100000000000001110011)},
+        {opcode_t::ECALL, opcode_matcher_t(0b1110011)},
+        {opcode_t::EBREAK,
+         opcode_matcher_t(0b00000000000100000000000001110011)},
         // zicsr
         CG_REGISTER_OPCODE(CSRRW, 0b001u, no_funct7),
         CG_REGISTER_OPCODE(CSRRS, 0b010u, no_funct7),
@@ -721,79 +715,82 @@ inline const std::unordered_map<riscv_opcode_t, riscv_opcode_matcher_t>
 #undef CG_REGISTER_OPCODE
 };
 
-template <> struct opcode_traits<riscv_opcode_t> {
-  static riscv_opcode_matcher_t matcher(riscv_opcode_t opcode) {
-    auto &matchers = riscv_opcode_matcher_t::per_opc;
+} // namespace cg::riscv
+
+template <> struct cg::opcode_traits<cg::riscv::opcode_t> {
+  static riscv::opcode_matcher_t matcher(riscv::opcode_t opcode) {
+    auto &matchers = riscv::opcode_matcher_t::per_opc;
     auto it = matchers.find(opcode);
-    assert(it != matchers.end());
+    CG_ASSERT(it != matchers.end(),
+              "Opcode matcher for specified opcode wasn't found");
     return it->second;
   }
 
-  static auto descriptions(riscv_opcode_t opcode) {
+  static auto descriptions(riscv::opcode_t opcode) {
     return descriptions4encoding(encoding4opcode(opcode));
   }
 
   static constexpr std::array opcodes = {
       // arithmetic
-      riscv_opcode_t::ADD,
-      riscv_opcode_t::SUB,
-      riscv_opcode_t::OR,
-      riscv_opcode_t::XOR,
-      riscv_opcode_t::AND,
-      riscv_opcode_t::SRL,
-      riscv_opcode_t::SLL,
-      riscv_opcode_t::SRA,
+      riscv::opcode_t::ADD,
+      riscv::opcode_t::SUB,
+      riscv::opcode_t::OR,
+      riscv::opcode_t::XOR,
+      riscv::opcode_t::AND,
+      riscv::opcode_t::SRL,
+      riscv::opcode_t::SLL,
+      riscv::opcode_t::SRA,
       // arithmetic with immediate
-      riscv_opcode_t::ADDI,
-      riscv_opcode_t::ORI,
-      riscv_opcode_t::XORI,
-      riscv_opcode_t::ANDI,
-      riscv_opcode_t::SRLI,
-      riscv_opcode_t::SLLI,
-      riscv_opcode_t::SRAI,
+      riscv::opcode_t::ADDI,
+      riscv::opcode_t::ORI,
+      riscv::opcode_t::XORI,
+      riscv::opcode_t::ANDI,
+      riscv::opcode_t::SRLI,
+      riscv::opcode_t::SLLI,
+      riscv::opcode_t::SRAI,
       // jumps and calls
-      riscv_opcode_t::JAL,
-      riscv_opcode_t::JALR,
-      riscv_opcode_t::BEQ,
-      riscv_opcode_t::BNE,
-      riscv_opcode_t::BLT,
-      riscv_opcode_t::BGE,
-      riscv_opcode_t::BLTU,
-      riscv_opcode_t::BGEU,
+      riscv::opcode_t::JAL,
+      riscv::opcode_t::JALR,
+      riscv::opcode_t::BEQ,
+      riscv::opcode_t::BNE,
+      riscv::opcode_t::BLT,
+      riscv::opcode_t::BGE,
+      riscv::opcode_t::BLTU,
+      riscv::opcode_t::BGEU,
       // loads/sotres
-      riscv_opcode_t::LB,
-      riscv_opcode_t::LH,
-      riscv_opcode_t::LW,
-      riscv_opcode_t::LBU,
-      riscv_opcode_t::LHU,
-      riscv_opcode_t::SB,
-      riscv_opcode_t::SH,
-      riscv_opcode_t::SW,
+      riscv::opcode_t::LB,
+      riscv::opcode_t::LH,
+      riscv::opcode_t::LW,
+      riscv::opcode_t::LBU,
+      riscv::opcode_t::LHU,
+      riscv::opcode_t::SB,
+      riscv::opcode_t::SH,
+      riscv::opcode_t::SW,
       // data flow
-      riscv_opcode_t::SLT,
-      riscv_opcode_t::SLTU,
-      riscv_opcode_t::SLTI,
-      riscv_opcode_t::SLTIU,
+      riscv::opcode_t::SLT,
+      riscv::opcode_t::SLTU,
+      riscv::opcode_t::SLTI,
+      riscv::opcode_t::SLTIU,
       // upper immediate
-      riscv_opcode_t::LUI,
-      riscv_opcode_t::AUIPC,
+      riscv::opcode_t::LUI,
+      riscv::opcode_t::AUIPC,
       // special ones
-      riscv_opcode_t::FENCE,
-      riscv_opcode_t::ECALL,
-      riscv_opcode_t::EBREAK,
+      riscv::opcode_t::FENCE,
+      riscv::opcode_t::ECALL,
+      riscv::opcode_t::EBREAK,
       // zicsr
-      riscv_opcode_t::CSRRW,
-      riscv_opcode_t::CSRRS,
-      riscv_opcode_t::CSRRC,
-      riscv_opcode_t::CSRRWI,
-      riscv_opcode_t::CSRRSI,
-      riscv_opcode_t::CSRRCI,
+      riscv::opcode_t::CSRRW,
+      riscv::opcode_t::CSRRS,
+      riscv::opcode_t::CSRRC,
+      riscv::opcode_t::CSRRWI,
+      riscv::opcode_t::CSRRSI,
+      riscv::opcode_t::CSRRCI,
   };
 
-  static constexpr std::string_view to_str(riscv_opcode_t opc) {
+  static constexpr std::string_view to_str(riscv::opcode_t opc) {
     switch (opc) {
 #define OPC_TO_STR_CASE(opcode)                                                \
-  case riscv_opcode_t::opcode:                                                 \
+  case riscv::opcode_t::opcode:                                                \
     return #opcode
 
       OPC_TO_STR_CASE(ADD);
@@ -844,24 +841,27 @@ template <> struct opcode_traits<riscv_opcode_t> {
       OPC_TO_STR_CASE(CSRRCI);
 
 #undef OPC_TO_STR_CASE
+    default:
+      throw unknown_opcode(opc);
     }
-    assert(false);
   }
 };
 
-using riscv_inst_description_t =
-    inst_description_t<riscv_opcode_t, inst_t, riscv_opcode_matcher_t,
-                       riscv_operand_description_t>;
+namespace cg::riscv {
 
-using riscv_inst_info_t = inst_info_t<riscv_inst_description_t>;
+using inst_description_t =
+    cg::inst_description_t<opcode_t, inst_t, opcode_matcher_t,
+                           operand_description_t>;
 
-inline const riscv_inst_info_t inst_info;
+using inst_info_t = cg::inst_info_t<inst_description_t>;
+
+inline const inst_info_t inst_info;
 
 inline auto decode(inst_t inst) {
   auto it = std::ranges::find_if(
       inst_info, [inst](const auto &desc) { return desc.match_opc(inst); });
-  assert(it != inst_info.end());
-  return riscv_decoded_inst_t(it->opcode(), it->operands(inst));
+  CG_ASSERT(it != inst_info.end(), "Can't decode specified instruction");
+  return decoded_inst_t(it->opcode(), it->operands(inst));
 }
 
 enum class mem_op_size_t {
@@ -918,7 +918,7 @@ static constexpr auto geu_op = [](reg_t s1, reg_t s2) {
 };
 } // namespace uop
 
-class riscv_simulator_t {
+class simulator_t {
   memory_t memory;
   reg_file_t regs;
 
@@ -935,27 +935,27 @@ class riscv_simulator_t {
   static constexpr bool dst = true;
   static constexpr bool src = false;
 
-  template <bool is_dst = src> static size_t extract_reg(riscv_operand_t op) {
+  template <bool is_dst = src> static size_t extract_reg(operand_t op) {
     size_t reg;
     op.visit(
         [&reg](reg_operand_t reg_op) {
-          assert(reg_op.is_dst() == is_dst);
+          CG_ASSERT(reg_op.is_dst() == is_dst);
           reg = reg_op.get_reg();
         },
-        [](auto other_ops) { assert(false); });
+        [](auto other_ops) { CG_ASSERT(false); });
     return reg;
   }
 
-  static reg_t extract_imm(riscv_operand_t op) {
+  static reg_t extract_imm(operand_t op) {
     reg_t imm;
     op.visit([&imm](imm_operand_t imm_op) { imm = imm_op.imm(); },
-             [](auto other_ops) { assert(false); });
+             [](auto other_ops) { CG_ASSERT(false); });
     return imm;
   }
 
-  void exec_reg_arithmetic(std::span<const riscv_operand_t> ops,
+  void exec_reg_arithmetic(std::span<const operand_t> ops,
                            std::invocable<reg_t, reg_t> auto &&operation) {
-    assert(ops.size() == 3);
+    CG_ASSERT(ops.size() == 3);
     auto rd_op = ops[rd_idx];
     auto rs1_op = ops[rs1_idx];
     auto rs2_op = ops[rs2_idx];
@@ -969,9 +969,9 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + pc_step);
   }
 
-  void exec_imm_arithmetic(std::span<const riscv_operand_t> ops,
+  void exec_imm_arithmetic(std::span<const operand_t> ops,
                            std::invocable<reg_t, reg_t> auto &&operation) {
-    assert(ops.size() == 3);
+    CG_ASSERT(ops.size() == 3);
     auto rd_op = ops[rd_idx];
     auto rs1_op = ops[rs1_idx];
     constexpr size_t imm_idx = 2;
@@ -989,7 +989,7 @@ class riscv_simulator_t {
     reg_t data;
     switch (size) {
     default:
-      assert(false);
+      CG_UNREACHABLE("Unknown memory operation size");
     case mem_op_size_t::BYTE:
       data = static_cast<reg_t>(static_cast<byte_t>(memory.read_byte(addr)));
       break;
@@ -1009,8 +1009,8 @@ class riscv_simulator_t {
     return data;
   }
 
-  void exec_load(std::span<const riscv_operand_t> ops, mem_op_size_t size) {
-    assert(ops.size() == 3);
+  void exec_load(std::span<const operand_t> ops, mem_op_size_t size) {
+    CG_ASSERT(ops.size() == 3);
     auto rd_op = ops[rd_idx];
     auto rs1_op = ops[rs1_idx];
     constexpr size_t imm_idx = 2;
@@ -1027,7 +1027,7 @@ class riscv_simulator_t {
   void store(addr_t addr, reg_t data, mem_op_size_t size) {
     switch (size) {
     default:
-      assert(false);
+      CG_ASSERT(false);
     case mem_op_size_t::BYTE:
       memory.write_byte(addr, static_cast<ubyte_t>(data & ~ubyte_t{0}));
       break;
@@ -1040,8 +1040,8 @@ class riscv_simulator_t {
     }
   }
 
-  void exec_store(std::span<const riscv_operand_t> ops, mem_op_size_t size) {
-    assert(ops.size() == 3);
+  void exec_store(std::span<const operand_t> ops, mem_op_size_t size) {
+    CG_ASSERT(ops.size() == 3);
     auto rs1_op = ops[rs1_no_rd_idx];
     auto rs2_op = ops[rs2_no_rd_idx];
     constexpr size_t imm_idx = 2;
@@ -1054,9 +1054,9 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + pc_step);
   }
 
-  void exec_branch(std::span<const riscv_operand_t> ops,
+  void exec_branch(std::span<const operand_t> ops,
                    std::invocable<reg_t, reg_t> auto &&comparator) {
-    assert(ops.size() == 3);
+    CG_ASSERT(ops.size() == 3);
     auto rs1_op = ops[rs1_no_rd_idx];
     auto rs2_op = ops[rs2_no_rd_idx];
     constexpr size_t imm_idx = 2;
@@ -1071,8 +1071,8 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + offset);
   }
 
-  void exec_jal(std::span<const riscv_operand_t> ops) {
-    assert(ops.size() == 2);
+  void exec_jal(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.size() == 2);
     auto rd_op = ops[rd_idx];
     constexpr size_t imm_idx = 1;
     auto imm_op = ops[imm_idx];
@@ -1083,8 +1083,8 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + imm);
   }
 
-  void exec_jalr(std::span<const riscv_operand_t> ops) {
-    assert(ops.size() == 3);
+  void exec_jalr(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.size() == 3);
     auto rd_op = ops[rd_idx];
     auto rs1_op = ops[rs1_idx];
     constexpr size_t imm_idx = 2;
@@ -1101,52 +1101,40 @@ class riscv_simulator_t {
   std::unordered_map<int, int> open_fds = {{0, 0}, {1, 1}, {2, 2}};
 
   void process_close() {
-    auto guest_fd = regs.read(riscv_abi_reg_t::a0);
+    auto guest_fd = regs.read(abi_reg_t::a0);
     auto fd_pos = open_fds.find(guest_fd);
     if (fd_pos == open_fds.end()) {
-      regs.write(riscv_abi_reg_t::a0, -1);
+      regs.write(abi_reg_t::a0, -1);
       return;
     }
     open_fds.erase(fd_pos);
-    regs.write(riscv_abi_reg_t::a0, 0);
+    regs.write(abi_reg_t::a0, 0);
   }
 
-  void process_write() {
-    auto guest_fd = regs.read(riscv_abi_reg_t::a0);
-    auto host_fd = open_fds.at(guest_fd);
-    auto addr = to_addr(regs.read(riscv_abi_reg_t::a1));
-    auto len = regs.read(riscv_abi_reg_t::a2);
-    auto written = 0;
-    for (auto i : std::views::iota(0, len)) {
-      char data = memory.read_byte(addr + i);
-      written += write(host_fd, &data, 1);
-    }
-    regs.write(riscv_abi_reg_t::a0, written);
-  }
+  void process_write();
 
   void process_newfstat() {
-    regs.write(riscv_abi_reg_t::a0, -1); // unimplemented
+    regs.write(abi_reg_t::a0, -1); // unimplemented
   }
 
   void process_exit() {
-    auto ret_val = regs.read(riscv_abi_reg_t::a0);
+    auto ret_val = regs.read(abi_reg_t::a0);
     std::cerr << "`exit` called. Exiting." << std::endl;
-    exit(ret_val);
+    std::exit(ret_val);
   }
 
   void process_brk() {
-    auto addr = to_addr(regs.read(riscv_abi_reg_t::a0));
+    auto addr = to_addr(regs.read(abi_reg_t::a0));
     memory.extend_upto(addr);
-    regs.write(riscv_abi_reg_t::a0, 0);
+    regs.write(abi_reg_t::a0, 0);
   }
 
-  void exec_ecall(std::span<const riscv_operand_t> ops) {
-    assert(ops.empty());
-    auto syscall_num = regs.read(riscv_abi_reg_t::a7);
+  void exec_ecall(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.empty());
+    auto syscall_num = regs.read(abi_reg_t::a7);
     switch (static_cast<syscall_num_t>(syscall_num)) {
     default:
-      std::cerr << "Unsupported ecall: " << syscall_num << std::endl;
-      assert(false);
+      CG_UNREACHABLE(std::format("Unsupported ecall: {}", syscall_num));
     case syscall_num_t::CLOSE:
       process_close();
       break;
@@ -1166,17 +1154,17 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + pc_step);
   }
 
-  void exec_ebreak(std::span<const riscv_operand_t> ops) {
-    assert(ops.empty());
+  void exec_ebreak(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.empty());
     trap_cause = trap_cause_t::EBREAK;
   }
 
-  void exec_fence(std::span<const riscv_operand_t>) {
+  void exec_fence(std::span<const operand_t>) {
     regs.set_pc(regs.get_pc() + pc_step);
   }
 
-  void exec_lui(std::span<const riscv_operand_t> ops) {
-    assert(ops.size() == 2);
+  void exec_lui(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.size() == 2);
     auto rd_op = ops[rd_idx];
     constexpr size_t imm_idx = 1;
     auto imm_op = ops[imm_idx];
@@ -1186,8 +1174,8 @@ class riscv_simulator_t {
     regs.set_pc(regs.get_pc() + pc_step);
   }
 
-  void exec_auipc(std::span<const riscv_operand_t> ops) {
-    assert(ops.size() == 2);
+  void exec_auipc(std::span<const operand_t> ops) {
+    CG_ASSERT(ops.size() == 2);
     auto rd_op = ops[rd_idx];
     constexpr size_t imm_idx = 1;
     auto imm_op = ops[imm_idx];
@@ -1204,27 +1192,22 @@ class riscv_simulator_t {
            << std::dec;
   }
 
-  void log_decoded_inst(const riscv_decoded_inst_t &inst) {
-    inst.print(logger);
-  }
+  void log_decoded_inst(const decoded_inst_t &inst) { inst.print(logger); }
 
   const static std::unordered_map<
-      riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
+      opcode_t, void (*)(simulator_t &, std::span<const operand_t>)>
       i_opc_actions;
 
   const static std::unordered_map<
-      riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
+      opcode_t, void (*)(simulator_t &, std::span<const operand_t>)>
       c_opc_actions;
 
   const static std::unordered_map<
-      riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
+      opcode_t, void (*)(simulator_t &, std::span<const operand_t>)>
       m_opc_actions;
 
 public:
-  riscv_simulator_t(enabled_extensions_t en_exts, logger_t l)
+  simulator_t(enabled_extensions_t en_exts, logger_t l)
       : memory(l), regs(en_exts, l), logger(l) {}
 
   inst_t fetch_inst() { return memory.read_word(regs.get_pc()); }
@@ -1235,7 +1218,7 @@ public:
     auto decoded_inst = decode(inst);
     log_decoded_inst(decoded_inst);
     auto action_pos = i_opc_actions.find(decoded_inst.opc());
-    assert(action_pos != i_opc_actions.end());
+    CG_ASSERT(action_pos != i_opc_actions.end());
     action_pos->second(*this, decoded_inst.ops());
   }
 
@@ -1252,9 +1235,250 @@ public:
     memory.load_section(data, size, addr);
   }
 
-  void init_sp(reg_t sp) { regs.write(riscv_abi_reg_t::sp, sp); }
+  void init_sp(reg_t sp) { regs.write(abi_reg_t::sp, sp); }
 
   friend class uop_processor_t;
 };
 
-} // namespace cg
+struct options_t final {
+  enabled_extensions_t extensions;
+  std::string elf_path;
+};
+
+options_t parse_args(int argc, char *argv[]) {
+  CG_ASSERT(argc == 3);
+  return options_t{.extensions = enabled_extensions_t(argv[1]),
+                   .elf_path = argv[2]};
+}
+
+void coregear_run(options_t opts);
+
+class uop_processor_t {
+public:
+  static void add_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::add_op);
+  }
+
+  static void sub_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::sub_op);
+  }
+
+  static void or_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::or_op);
+  }
+
+  static void xor_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::xor_op);
+  }
+
+  static void and_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::and_op);
+  }
+
+  static void srl_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::srl_op);
+  }
+
+  static void sll_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::sll_op);
+  }
+
+  static void sra_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::sra_op);
+  }
+
+  static void slt_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::slt_op);
+  }
+
+  static void sltu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::sltu_op);
+  }
+
+  static void addi_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::add_op);
+  }
+
+  static void ori_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::or_op);
+  }
+
+  static void xori_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::xor_op);
+  }
+
+  static void andi_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::and_op);
+  }
+
+  static void srli_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::srl_op);
+  }
+
+  static void slli_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::sll_op);
+  }
+
+  static void srai_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_imm_arithmetic(ops, uop::sra_op);
+  }
+
+  static void jalr_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_jalr(ops);
+  }
+
+  static void lb_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_load(ops, mem_op_size_t::BYTE);
+  }
+
+  static void lh_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_load(ops, mem_op_size_t::HALF);
+  }
+
+  static void lw_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_load(ops, mem_op_size_t::WORD);
+  }
+
+  static void lbu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_load(ops, mem_op_size_t::UBYTE);
+  }
+
+  static void lhu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_load(ops, mem_op_size_t::UHALF);
+  }
+
+  static void slti_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::slt_op);
+  }
+
+  static void sltiu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_reg_arithmetic(ops, uop::sltu_op);
+  }
+
+  static void ecall_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_ecall(ops);
+  }
+
+  static void ebreak_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_ebreak(ops);
+  }
+
+  static void fence_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_fence(ops);
+  }
+
+  static void jal_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_jal(ops);
+  }
+
+  static void beq_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::eq_op);
+  }
+
+  static void bne_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::ne_op);
+  }
+
+  static void blt_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::lt_op);
+  }
+
+  static void bge_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::ge_op);
+  }
+
+  static void bltu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::ltu_op);
+  }
+
+  static void bgeu_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_branch(ops, uop::geu_op);
+  }
+
+  static void sb_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_store(ops, mem_op_size_t::BYTE);
+  }
+
+  static void sh_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_store(ops, mem_op_size_t::HALF);
+  }
+
+  static void sw_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_store(ops, mem_op_size_t::WORD);
+  }
+
+  static void lui_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_lui(ops);
+  }
+
+  static void auipc_func(simulator_t &sim, std::span<const operand_t> ops) {
+    sim.exec_auipc(ops);
+  }
+};
+
+const std::unordered_map<opcode_t,
+                         void (*)(simulator_t &, std::span<const operand_t>)>
+    simulator_t::i_opc_actions = {
+        {opcode_t::ADD, uop_processor_t::add_func},
+        {opcode_t::SUB, uop_processor_t::sub_func},
+        {opcode_t::OR, uop_processor_t::or_func},
+        {opcode_t::XOR, uop_processor_t::xor_func},
+        {opcode_t::AND, uop_processor_t::and_func},
+        {opcode_t::SRL, uop_processor_t::srl_func},
+        {opcode_t::SLL, uop_processor_t::sll_func},
+        {opcode_t::SRA, uop_processor_t::sra_func},
+        {opcode_t::SLT, uop_processor_t::slt_func},
+        {opcode_t::SLTU, uop_processor_t::sltu_func},
+        {opcode_t::ADDI, uop_processor_t::addi_func},
+        {opcode_t::ORI, uop_processor_t::ori_func},
+        {opcode_t::XORI, uop_processor_t::xori_func},
+        {opcode_t::ANDI, uop_processor_t::andi_func},
+        {opcode_t::SRLI, uop_processor_t::srli_func},
+        {opcode_t::SLLI, uop_processor_t::slli_func},
+        {opcode_t::SRAI, uop_processor_t::srai_func},
+        {opcode_t::JALR, uop_processor_t::jalr_func},
+        {opcode_t::LB, uop_processor_t::lb_func},
+        {opcode_t::LH, uop_processor_t::lh_func},
+        {opcode_t::LW, uop_processor_t::lw_func},
+        {opcode_t::LBU, uop_processor_t::lbu_func},
+        {opcode_t::LHU, uop_processor_t::lhu_func},
+        {opcode_t::SLTI, uop_processor_t::slti_func},
+        {opcode_t::SLTIU, uop_processor_t::sltiu_func},
+        {opcode_t::ECALL, uop_processor_t::ecall_func},
+        {opcode_t::EBREAK, uop_processor_t::ebreak_func},
+        {opcode_t::FENCE, uop_processor_t::fence_func},
+        {opcode_t::JAL, uop_processor_t::jal_func},
+        {opcode_t::BEQ, uop_processor_t::beq_func},
+        {opcode_t::BNE, uop_processor_t::bne_func},
+        {opcode_t::BLT, uop_processor_t::blt_func},
+        {opcode_t::BGE, uop_processor_t::bge_func},
+        {opcode_t::BLTU, uop_processor_t::bltu_func},
+        {opcode_t::BGEU, uop_processor_t::bgeu_func},
+        {opcode_t::SB, uop_processor_t::sb_func},
+        {opcode_t::SH, uop_processor_t::sh_func},
+        {opcode_t::SW, uop_processor_t::sw_func},
+        {opcode_t::LUI, uop_processor_t::lui_func},
+        {opcode_t::AUIPC, uop_processor_t::auipc_func},
+};
+
+const std::unordered_map<opcode_t,
+                         void (*)(simulator_t &, std::span<const operand_t>)>
+    simulator_t::c_opc_actions = {};
+
+const std::unordered_map<opcode_t,
+                         void (*)(simulator_t &, std::span<const operand_t>)>
+    simulator_t::m_opc_actions = {};
+
+} // namespace cg::riscv
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+export int coregear_run(int argc, char *argv[])
+#ifdef __cplusplus
+    noexcept
+#endif
+    ;
+#ifdef __cplusplus
+}
+#endif

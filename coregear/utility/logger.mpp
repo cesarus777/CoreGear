@@ -1,20 +1,24 @@
-#pragma once
+module;
 
-#include "coregear/assert.hpp"
+#include <coregear/utility/assert.hpp>
 
-#include <ostream>
+export module coregear.utility:logger;
+
+import :assert;
+
+import std;
 
 namespace cg {
 
-constexpr size_t hex_byte_width = 2;
-
-template <std::integral T>
-constexpr size_t hex_width = sizeof(T) * hex_byte_width;
-
-class logger_t final {
+export class logger_t final {
   std::ostream *logger;
 
 public:
+  static constexpr std::size_t hex_byte_width = 2;
+
+  template <std::integral T>
+  static constexpr std::size_t hex_width = sizeof(T) * hex_byte_width;
+
   logger_t(std::ostream &os) : logger(&os) {}
 
   template <typename T> logger_t &operator<<(T &&arg) {

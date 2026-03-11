@@ -1,0 +1,21 @@
+export module coregear.utility:assert;
+
+import std;
+
+namespace cg {
+
+export void assert(bool cond, std::string_view cond_str,
+                   std::string_view file_name, int line,
+                   std::optional<std::string_view> msg = {}) {
+  if (cond)
+    return;
+
+  std::cerr << std::format("{}:{}: assertion failed (condition '{}' is false)",
+                           file_name, line, cond_str);
+  if (msg)
+    std::cerr << std::format(": {}", *msg);
+  std::cerr << std::endl;
+  std::terminate();
+}
+
+} // namespace cg
