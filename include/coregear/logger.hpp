@@ -1,10 +1,10 @@
 #pragma once
 
-#include <prs/assert.hpp>
+#include "coregear/assert.hpp"
 
 #include <ostream>
 
-namespace prs {
+namespace cg {
 
 constexpr size_t hex_byte_width = 2;
 
@@ -18,31 +18,31 @@ public:
   logger_t(std::ostream &os) : logger(&os) {}
 
   template <typename T> logger_t &operator<<(T &&arg) {
-    PRS_ASSERT(logger);
+    CG_ASSERT(logger);
     *logger << std::forward<T>(arg);
     return *this;
   }
 
   operator bool() const {
-    PRS_ASSERT(logger);
+    CG_ASSERT(logger);
     return static_cast<bool>(*logger);
   }
 
   auto exceptions() const {
-    PRS_ASSERT(logger);
+    CG_ASSERT(logger);
     return logger->exceptions();
   }
 
   void exceptions(std::ios_base::iostate except) const {
-    PRS_ASSERT(logger);
+    CG_ASSERT(logger);
     logger->exceptions(except);
   }
 
   logger_t &flush() {
-    PRS_ASSERT(logger);
+    CG_ASSERT(logger);
     logger->flush();
     return *this;
   }
 };
 
-} // namespace prs
+} // namespace cg

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "prs/extensions.hpp"
-#include "prs/memory.hpp"
-#include "prs/regs.hpp"
-#include "prs/sim.hpp"
+#include "coregear/extensions.hpp"
+#include "coregear/memory.hpp"
+#include "coregear/regs.hpp"
+#include "coregear/sim.hpp"
 
 #include <unistd.h>
 
@@ -20,7 +20,7 @@
 #include <utility>
 #include <variant>
 
-namespace prs {
+namespace cg {
 
 using inst_t = uint32_t;
 
@@ -270,19 +270,19 @@ public:
 
   auto is_dst() const noexcept { return dst; }
 };
-PRS_EXPECT_OPERAND_INFO_IMPL(reg_operand_info_t);
+CG_EXPECT_OPERAND_INFO_IMPL(reg_operand_info_t);
 
 class imm_operand_info_t {
 public:
   imm_operand_info_t() noexcept {}
 };
-PRS_EXPECT_OPERAND_INFO_IMPL(imm_operand_info_t);
+CG_EXPECT_OPERAND_INFO_IMPL(imm_operand_info_t);
 
 class csr_operand_info_t {
 public:
   csr_operand_info_t() noexcept {}
 };
-PRS_EXPECT_OPERAND_INFO_IMPL(csr_operand_info_t);
+CG_EXPECT_OPERAND_INFO_IMPL(csr_operand_info_t);
 
 using riscv_operand_info_t =
     operand_info_t<reg_operand_info_t, imm_operand_info_t, csr_operand_info_t>;
@@ -304,7 +304,7 @@ public:
 
   using reg_operand_info_t::is_dst;
 };
-PRS_EXPECT_OPERAND_IMPL(reg_operand_t);
+CG_EXPECT_OPERAND_IMPL(reg_operand_t);
 
 class imm_operand_t final : private imm_operand_info_t {
 public:
@@ -319,7 +319,7 @@ public:
 
   auto imm() const noexcept { return imm_data; }
 };
-PRS_EXPECT_OPERAND_IMPL(imm_operand_t);
+CG_EXPECT_OPERAND_IMPL(imm_operand_t);
 
 enum class csr_t {};
 
@@ -336,7 +336,7 @@ public:
 
   auto csr() const noexcept { return csr_data; }
 };
-PRS_EXPECT_OPERAND_IMPL(csr_operand_t);
+CG_EXPECT_OPERAND_IMPL(csr_operand_t);
 
 using riscv_operand_t = operand_t<reg_operand_t, imm_operand_t, csr_operand_t>;
 
@@ -526,25 +526,25 @@ public:
   }
 };
 
-PRS_EXPECT_OPERAND_MATCHER_IMPL(reg_operand_matcher_t);
-PRS_EXPECT_OPERAND_MATCHER_IMPL(imm_operand_matcher_t);
-PRS_EXPECT_OPERAND_MATCHER_IMPL(csr_operand_matcher_t);
+CG_EXPECT_OPERAND_MATCHER_IMPL(reg_operand_matcher_t);
+CG_EXPECT_OPERAND_MATCHER_IMPL(imm_operand_matcher_t);
+CG_EXPECT_OPERAND_MATCHER_IMPL(csr_operand_matcher_t);
 
 using riscv_operand_matcher_t =
     operand_matcher_t<reg_operand_matcher_t, imm_operand_matcher_t,
                       csr_operand_matcher_t>;
 
-#define PRS_RISCV_MAP_OP_INFO_TO_OP(op_info, op, matcher)                      \
+#define CG_RISCV_MAP_OP_INFO_TO_OP(op_info, op, matcher)                      \
   template <> struct op_info_traits<op_info> {                                 \
     using op_type = op;                                                        \
     using matcher_type = matcher;                                              \
   }
 
-PRS_RISCV_MAP_OP_INFO_TO_OP(reg_operand_info_t, reg_operand_t,
+CG_RISCV_MAP_OP_INFO_TO_OP(reg_operand_info_t, reg_operand_t,
                             reg_operand_matcher_t);
-PRS_RISCV_MAP_OP_INFO_TO_OP(imm_operand_info_t, imm_operand_t,
+CG_RISCV_MAP_OP_INFO_TO_OP(imm_operand_info_t, imm_operand_t,
                             imm_operand_matcher_t);
-PRS_RISCV_MAP_OP_INFO_TO_OP(csr_operand_info_t, csr_operand_t,
+CG_RISCV_MAP_OP_INFO_TO_OP(csr_operand_info_t, csr_operand_t,
                             csr_operand_matcher_t);
 
 struct riscv_operand_description_tr {
@@ -659,66 +659,66 @@ static_assert(opcode_matcher_c<riscv_opcode_matcher_t, inst_t>);
 
 inline const std::unordered_map<riscv_opcode_t, riscv_opcode_matcher_t>
     riscv_opcode_matcher_t::per_opc = {
-#define PRS_REGISTER_OPCODE(opc, f3, f7)                                       \
+#define CG_REGISTER_OPCODE(opc, f3, f7)                                       \
   {riscv_opcode_t::opc,                                                        \
    riscv_opcode_matcher_t(opcode_bits(riscv_opcode_t::opc), (f3), (f7))}
 
         // arithmetic
-        PRS_REGISTER_OPCODE(ADD, 0b000u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SUB, 0b000u, 0b0100000u),
-        PRS_REGISTER_OPCODE(OR, 0b110u, 0b0000000u),
-        PRS_REGISTER_OPCODE(XOR, 0b100u, 0b0000000u),
-        PRS_REGISTER_OPCODE(AND, 0b111u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SRL, 0b101u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SLL, 0b001u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SRA, 0b101u, 0b0100000u),
+        CG_REGISTER_OPCODE(ADD, 0b000u, 0b0000000u),
+        CG_REGISTER_OPCODE(SUB, 0b000u, 0b0100000u),
+        CG_REGISTER_OPCODE(OR, 0b110u, 0b0000000u),
+        CG_REGISTER_OPCODE(XOR, 0b100u, 0b0000000u),
+        CG_REGISTER_OPCODE(AND, 0b111u, 0b0000000u),
+        CG_REGISTER_OPCODE(SRL, 0b101u, 0b0000000u),
+        CG_REGISTER_OPCODE(SLL, 0b001u, 0b0000000u),
+        CG_REGISTER_OPCODE(SRA, 0b101u, 0b0100000u),
         // arithmetic with immediate
-        PRS_REGISTER_OPCODE(ADDI, 0b000u, no_funct7),
-        PRS_REGISTER_OPCODE(ORI, 0b110u, no_funct7),
-        PRS_REGISTER_OPCODE(XORI, 0b100u, no_funct7),
-        PRS_REGISTER_OPCODE(ANDI, 0b111u, no_funct7),
-        PRS_REGISTER_OPCODE(SRLI, 0b101u, no_funct7),
-        PRS_REGISTER_OPCODE(SLLI, 0b001u, no_funct7),
-        PRS_REGISTER_OPCODE(SRAI, 0b101u, no_funct7),
+        CG_REGISTER_OPCODE(ADDI, 0b000u, no_funct7),
+        CG_REGISTER_OPCODE(ORI, 0b110u, no_funct7),
+        CG_REGISTER_OPCODE(XORI, 0b100u, no_funct7),
+        CG_REGISTER_OPCODE(ANDI, 0b111u, no_funct7),
+        CG_REGISTER_OPCODE(SRLI, 0b101u, no_funct7),
+        CG_REGISTER_OPCODE(SLLI, 0b001u, no_funct7),
+        CG_REGISTER_OPCODE(SRAI, 0b101u, no_funct7),
         // jumps and calls
-        PRS_REGISTER_OPCODE(JAL, no_funct3, no_funct7),
-        PRS_REGISTER_OPCODE(JALR, 0b000u, no_funct7),
-        PRS_REGISTER_OPCODE(BEQ, 0b000u, no_funct7),
-        PRS_REGISTER_OPCODE(BNE, 0b001u, no_funct7),
-        PRS_REGISTER_OPCODE(BLT, 0b100u, no_funct7),
-        PRS_REGISTER_OPCODE(BGE, 0b101u, no_funct7),
-        PRS_REGISTER_OPCODE(BLTU, 0b110u, no_funct7),
-        PRS_REGISTER_OPCODE(BGEU, 0b111u, no_funct7),
+        CG_REGISTER_OPCODE(JAL, no_funct3, no_funct7),
+        CG_REGISTER_OPCODE(JALR, 0b000u, no_funct7),
+        CG_REGISTER_OPCODE(BEQ, 0b000u, no_funct7),
+        CG_REGISTER_OPCODE(BNE, 0b001u, no_funct7),
+        CG_REGISTER_OPCODE(BLT, 0b100u, no_funct7),
+        CG_REGISTER_OPCODE(BGE, 0b101u, no_funct7),
+        CG_REGISTER_OPCODE(BLTU, 0b110u, no_funct7),
+        CG_REGISTER_OPCODE(BGEU, 0b111u, no_funct7),
         // loads/sotres
-        PRS_REGISTER_OPCODE(LB, 0b000u, no_funct7),
-        PRS_REGISTER_OPCODE(LH, 0b001u, no_funct7),
-        PRS_REGISTER_OPCODE(LW, 0b010u, no_funct7),
-        PRS_REGISTER_OPCODE(LBU, 0b100u, no_funct7),
-        PRS_REGISTER_OPCODE(LHU, 0b101u, no_funct7),
-        PRS_REGISTER_OPCODE(SB, 0b000u, no_funct7),
-        PRS_REGISTER_OPCODE(SH, 0b001u, no_funct7),
-        PRS_REGISTER_OPCODE(SW, 0b010u, no_funct7),
+        CG_REGISTER_OPCODE(LB, 0b000u, no_funct7),
+        CG_REGISTER_OPCODE(LH, 0b001u, no_funct7),
+        CG_REGISTER_OPCODE(LW, 0b010u, no_funct7),
+        CG_REGISTER_OPCODE(LBU, 0b100u, no_funct7),
+        CG_REGISTER_OPCODE(LHU, 0b101u, no_funct7),
+        CG_REGISTER_OPCODE(SB, 0b000u, no_funct7),
+        CG_REGISTER_OPCODE(SH, 0b001u, no_funct7),
+        CG_REGISTER_OPCODE(SW, 0b010u, no_funct7),
         // data flow
-        PRS_REGISTER_OPCODE(SLT, 0b010u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SLTU, 0b011u, 0b0000000u),
-        PRS_REGISTER_OPCODE(SLTI, 0b010u, no_funct7),
-        PRS_REGISTER_OPCODE(SLTIU, 0b100u, no_funct7),
+        CG_REGISTER_OPCODE(SLT, 0b010u, 0b0000000u),
+        CG_REGISTER_OPCODE(SLTU, 0b011u, 0b0000000u),
+        CG_REGISTER_OPCODE(SLTI, 0b010u, no_funct7),
+        CG_REGISTER_OPCODE(SLTIU, 0b100u, no_funct7),
         // upper immediate
-        PRS_REGISTER_OPCODE(LUI, no_funct3, no_funct7),
-        PRS_REGISTER_OPCODE(AUIPC, no_funct3, no_funct7),
+        CG_REGISTER_OPCODE(LUI, no_funct3, no_funct7),
+        CG_REGISTER_OPCODE(AUIPC, no_funct3, no_funct7),
         // special ones
-        PRS_REGISTER_OPCODE(FENCE, 0b010u, 0b0000000u),
+        CG_REGISTER_OPCODE(FENCE, 0b010u, 0b0000000u),
         {riscv_opcode_t::ECALL, riscv_opcode_matcher_t(0b1110011)},
         {riscv_opcode_t::EBREAK,
          riscv_opcode_matcher_t(0b00000000000100000000000001110011)},
         // zicsr
-        PRS_REGISTER_OPCODE(CSRRW, 0b001u, no_funct7),
-        PRS_REGISTER_OPCODE(CSRRS, 0b010u, no_funct7),
-        PRS_REGISTER_OPCODE(CSRRC, 0b011u, no_funct7),
-        PRS_REGISTER_OPCODE(CSRRWI, 0b101u, no_funct7),
-        PRS_REGISTER_OPCODE(CSRRSI, 0b110u, no_funct7),
-        PRS_REGISTER_OPCODE(CSRRCI, 0b111u, no_funct7),
-#undef PRS_REGISTER_OPCODE
+        CG_REGISTER_OPCODE(CSRRW, 0b001u, no_funct7),
+        CG_REGISTER_OPCODE(CSRRS, 0b010u, no_funct7),
+        CG_REGISTER_OPCODE(CSRRC, 0b011u, no_funct7),
+        CG_REGISTER_OPCODE(CSRRWI, 0b101u, no_funct7),
+        CG_REGISTER_OPCODE(CSRRSI, 0b110u, no_funct7),
+        CG_REGISTER_OPCODE(CSRRCI, 0b111u, no_funct7),
+#undef CG_REGISTER_OPCODE
 };
 
 template <> struct opcode_traits<riscv_opcode_t> {
@@ -1210,17 +1210,17 @@ class riscv_simulator_t {
 
   const static std::unordered_map<
       riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const prs::riscv_operand_t>)>
+      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
       i_opc_actions;
 
   const static std::unordered_map<
       riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const prs::riscv_operand_t>)>
+      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
       c_opc_actions;
 
   const static std::unordered_map<
       riscv_opcode_t,
-      void (*)(riscv_simulator_t &, std::span<const prs::riscv_operand_t>)>
+      void (*)(riscv_simulator_t &, std::span<const cg::riscv_operand_t>)>
       m_opc_actions;
 
 public:
@@ -1257,4 +1257,4 @@ public:
   friend class uop_processor_t;
 };
 
-} // namespace prs
+} // namespace cg

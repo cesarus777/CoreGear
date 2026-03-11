@@ -1,1 +1,1 @@
-# PRS - Pluralistic RISC-V Simulator
+# CoreGear – The overall simulator platform

@@ -1,28 +1,28 @@
 #pragma once
 
-#include "exceptions.hpp"
+#include "coregear/exceptions.hpp"
 
 #include <algorithm>
 #include <set>
 #include <string_view>
 #include <unordered_map>
 
-namespace prs {
+namespace cg {
 
-#define PRS_ALL_EXTENSIONS(X)                                                  \
+#define CG_ALL_EXTENSIONS(X)                                                  \
   X(I, i, 0)                                                                   \
   X(C, c, 1)                                                                   \
   X(M, m, 2)
 
 enum class extensions_t : size_t {
 #define ENUM_ITEM(enumerator, str, num) enumerator = num,
-  PRS_ALL_EXTENSIONS(ENUM_ITEM)
+  CG_ALL_EXTENSIONS(ENUM_ITEM)
 #undef ENUM_ITEM
 };
 
 #define ADD_ONE(enumerator, str, num) +1
 
-constexpr size_t num_supported_extensions = PRS_ALL_EXTENSIONS(ADD_ONE);
+constexpr size_t num_supported_extensions = CG_ALL_EXTENSIONS(ADD_ONE);
 
 class enabled_extensions_t final {
   using extensions_storage_t = std::set<extensions_t>;
@@ -52,4 +52,4 @@ public:
   auto size() const noexcept { return en_exts.size(); }
 };
 
-} // namespace prs
+} // namespace cg

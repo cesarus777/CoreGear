@@ -1,9 +1,9 @@
 #pragma once
 
-#include "prs/extensions.hpp"
-#include "prs/memory.hpp"
+#include "coregear/extensions.hpp"
+#include "coregear/memory.hpp"
 
-namespace prs {
+namespace cg {
 
 constexpr size_t pc_step = num_bytes_in_inst;
 constexpr size_t xlen = 32;
@@ -89,7 +89,7 @@ public:
   reg_file_t(enabled_extensions_t en_exts, logger_t l) : logger(std::move(l)) {}
 
   reg_t read(size_t reg) const {
-    PRS_ASSERT(reg < nregs);
+    CG_ASSERT(reg < nregs);
     auto data = regs[reg];
     log_read(reg, data);
     return data;
@@ -102,7 +102,7 @@ public:
   void write(size_t reg, reg_t data) {
     if (reg == 0)
       return;
-    PRS_ASSERT(reg < nregs);
+    CG_ASSERT(reg < nregs);
     regs[reg] = data;
     log_write(reg, data);
   }
@@ -116,4 +116,4 @@ public:
   void set_pc(ureg_t new_pc) { pc = new_pc; }
 };
 
-} // namespace prs
+} // namespace cg

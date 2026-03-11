@@ -1,7 +1,7 @@
 #pragma once
 
-#include "prs/exceptions.hpp"
-#include "prs/logger.hpp"
+#include "coregear/exceptions.hpp"
+#include "coregear/logger.hpp"
 
 #include <climits>
 #include <cstddef>
@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <vector>
 
-namespace prs {
+namespace cg {
 
 using addr_t = uint32_t;
 
@@ -138,7 +138,7 @@ public:
   void write_word(addr_t addr, uword_t data) { write_impl(addr, data); }
 
   void load_section(const char *data, size_t size, addr_t addr) {
-    PRS_ASSERT((addr % bytes_per_cell) == 0);
+    CG_ASSERT((addr % bytes_per_cell) == 0);
     if (size % storage_alignment)
       size = (size / storage_alignment + 1) * storage_alignment;
     ensure_storage_capacity(addr + size);
@@ -156,4 +156,4 @@ public:
   void extend_upto(addr_t addr) { ensure_storage_capacity(addr); }
 };
 
-} // namespace prs
+} // namespace cg

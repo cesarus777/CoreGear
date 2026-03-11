@@ -1,6 +1,6 @@
 #pragma once
 
-#include "prs/riscv_sim.hpp"
+#include "coregear/riscv_sim.hpp"
 
 #include <cassert>
 #include <concepts>
@@ -8,17 +8,17 @@
 #include <variant>
 #include <vector>
 
-#define PRS_EXPECT_CONCEPT_IMPL(con, type)                                     \
+#define CG_EXPECT_CONCEPT_IMPL(con, type)                                     \
   static_assert(con<type>, #type " expected to satisfy " #con "!")
 
-namespace prs {
+namespace cg {
 
 template <typename T>
 concept operand_info_impl_c =
     std::copy_constructible<T> && std::move_constructible<T>;
 
-#define PRS_EXPECT_OPERAND_INFO_IMPL(type)                                     \
-  PRS_EXPECT_CONCEPT_IMPL(operand_info_impl_c, type)
+#define CG_EXPECT_OPERAND_INFO_IMPL(type)                                     \
+  CG_EXPECT_CONCEPT_IMPL(operand_info_impl_c, type)
 
 template <operand_info_impl_c... infos_t> class operand_info_t {
   std::variant<infos_t...> info;
@@ -42,8 +42,8 @@ concept operand_impl_c =
     operand_info_impl_c<typename T::op_info_t> && std::copy_constructible<T> &&
     std::move_constructible<T>;
 
-#define PRS_EXPECT_OPERAND_IMPL(type)                                          \
-  PRS_EXPECT_CONCEPT_IMPL(operand_impl_c, type)
+#define CG_EXPECT_OPERAND_IMPL(type)                                          \
+  CG_EXPECT_CONCEPT_IMPL(operand_impl_c, type)
 
 template <typename T> struct op_info_traits {};
 
@@ -69,8 +69,8 @@ concept operand_matcher_impl_c = requires(T x, typename T::inst_type inst) {
   { x.extract(inst) } -> std::same_as<typename T::extract_type>;
 } && std::copy_constructible<T> && std::move_constructible<T>;
 
-#define PRS_EXPECT_OPERAND_MATCHER_IMPL(type)                                  \
-  PRS_EXPECT_CONCEPT_IMPL(operand_matcher_impl_c, type)
+#define CG_EXPECT_OPERAND_MATCHER_IMPL(type)                                  \
+  CG_EXPECT_CONCEPT_IMPL(operand_matcher_impl_c, type)
 
 template <operand_matcher_impl_c... matchers_t> class operand_matcher_t {
   std::variant<matchers_t...> matcher;
@@ -272,4 +272,4 @@ public:
   using base_t::size;
 };
 
-} // namespace prs
+} // namespace cg

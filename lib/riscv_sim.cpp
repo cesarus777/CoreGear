@@ -1,7 +1,7 @@
-#include "prs-c/prs.h"
+#include "coregear-c/coregear.h"
 
-#include "prs/extensions.hpp"
-#include "prs/riscv_sim.hpp"
+#include "coregear/extensions.hpp"
+#include "coregear/riscv_sim.hpp"
 
 #include "elfio/elfio.hpp"
 #include "elfio/elfio_symbols.hpp"
@@ -12,22 +12,22 @@
 namespace {
 
 struct options_t final {
-  prs::enabled_extensions_t extensions;
+  cg::enabled_extensions_t extensions;
   std::string elf_path;
 };
 
 options_t parse_args(int argc, char *argv[]) {
   assert(argc == 3);
-  return options_t{.extensions = prs::enabled_extensions_t(argv[1]),
+  return options_t{.extensions = cg::enabled_extensions_t(argv[1]),
                    .elf_path = argv[2]};
 }
 
-void run_prs(options_t opts) {
+void coregear_run(options_t opts) {
   ELFIO::elfio reader;
   if (!reader.load(opts.elf_path))
-    throw prs::cant_open_file_error(opts.elf_path);
+    throw cg::cant_open_file_error(opts.elf_path);
 
-  prs::riscv_simulator_t sim(opts.extensions, std::cerr);
+  cg::riscv_simulator_t sim(opts.extensions, std::cerr);
   for (auto &&segment : reader.segments) {
     sim.load_section(segment->get_data(), segment->get_file_size(),
                      segment->get_virtual_address());
@@ -48,17 +48,17 @@ void run_prs(options_t opts) {
   unsigned char other;
   sym_table.get_symbol(name, value, size, bind, type, section_index, other);
 
-  assert(value <= std::numeric_limits<prs::addr_t>::max());
+  assert(value <= std::numeric_limits<cg::addr_t>::max());
 
   sim.init_sp(0x100000);
 
-  prs::addr_t start = value;
+  cg::addr_t start = value;
   sim.exec_from(start);
 }
 
 } // namespace
 
-int run_prs(int argc, char *argv[]) PRS_NOEXCEPT {
+int coregear_run(int argc, char *argv[]) CG_NOEXCEPT {
   options_t opts;
   try {
     opts = parse_args(argc, argv);
@@ -69,7 +69,7 @@ int run_prs(int argc, char *argv[]) PRS_NOEXCEPT {
     exit(EXIT_FAILURE);
   }
   try {
-    run_prs(opts);
+    coregear_run(opts);
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     exit(EXIT_FAILURE);
@@ -79,7 +79,7 @@ int run_prs(int argc, char *argv[]) PRS_NOEXCEPT {
   return EXIT_SUCCESS;
 }
 
-namespace prs {
+namespace cg {
 
 class uop_processor_t {
 public:
@@ -284,60 +284,60 @@ public:
   }
 };
 
-} // namespace prs
+} // namespace cg
 
-const std::unordered_map<prs::riscv_opcode_t,
-                         void (*)(prs::riscv_simulator_t &,
-                                  std::span<const prs::riscv_operand_t>)>
-    prs::riscv_simulator_t::i_opc_actions = {
-        {prs::riscv_opcode_t::ADD, prs::uop_processor_t::add_func},
-        {prs::riscv_opcode_t::SUB, prs::uop_processor_t::sub_func},
-        {prs::riscv_opcode_t::OR, prs::uop_processor_t::or_func},
-        {prs::riscv_opcode_t::XOR, prs::uop_processor_t::xor_func},
-        {prs::riscv_opcode_t::AND, prs::uop_processor_t::and_func},
-        {prs::riscv_opcode_t::SRL, prs::uop_processor_t::srl_func},
-        {prs::riscv_opcode_t::SLL, prs::uop_processor_t::sll_func},
-        {prs::riscv_opcode_t::SRA, prs::uop_processor_t::sra_func},
-        {prs::riscv_opcode_t::SLT, prs::uop_processor_t::slt_func},
-        {prs::riscv_opcode_t::SLTU, prs::uop_processor_t::sltu_func},
-        {prs::riscv_opcode_t::ADDI, prs::uop_processor_t::addi_func},
-        {prs::riscv_opcode_t::ORI, prs::uop_processor_t::ori_func},
-        {prs::riscv_opcode_t::XORI, prs::uop_processor_t::xori_func},
-        {prs::riscv_opcode_t::ANDI, prs::uop_processor_t::andi_func},
-        {prs::riscv_opcode_t::SRLI, prs::uop_processor_t::srli_func},
-        {prs::riscv_opcode_t::SLLI, prs::uop_processor_t::slli_func},
-        {prs::riscv_opcode_t::SRAI, prs::uop_processor_t::srai_func},
-        {prs::riscv_opcode_t::JALR, prs::uop_processor_t::jalr_func},
-        {prs::riscv_opcode_t::LB, prs::uop_processor_t::lb_func},
-        {prs::riscv_opcode_t::LH, prs::uop_processor_t::lh_func},
-        {prs::riscv_opcode_t::LW, prs::uop_processor_t::lw_func},
-        {prs::riscv_opcode_t::LBU, prs::uop_processor_t::lbu_func},
-        {prs::riscv_opcode_t::LHU, prs::uop_processor_t::lhu_func},
-        {prs::riscv_opcode_t::SLTI, prs::uop_processor_t::slti_func},
-        {prs::riscv_opcode_t::SLTIU, prs::uop_processor_t::sltiu_func},
-        {prs::riscv_opcode_t::ECALL, prs::uop_processor_t::ecall_func},
-        {prs::riscv_opcode_t::EBREAK, prs::uop_processor_t::ebreak_func},
-        {prs::riscv_opcode_t::FENCE, prs::uop_processor_t::fence_func},
-        {prs::riscv_opcode_t::JAL, prs::uop_processor_t::jal_func},
-        {prs::riscv_opcode_t::BEQ, prs::uop_processor_t::beq_func},
-        {prs::riscv_opcode_t::BNE, prs::uop_processor_t::bne_func},
-        {prs::riscv_opcode_t::BLT, prs::uop_processor_t::blt_func},
-        {prs::riscv_opcode_t::BGE, prs::uop_processor_t::bge_func},
-        {prs::riscv_opcode_t::BLTU, prs::uop_processor_t::bltu_func},
-        {prs::riscv_opcode_t::BGEU, prs::uop_processor_t::bgeu_func},
-        {prs::riscv_opcode_t::SB, prs::uop_processor_t::sb_func},
-        {prs::riscv_opcode_t::SH, prs::uop_processor_t::sh_func},
-        {prs::riscv_opcode_t::SW, prs::uop_processor_t::sw_func},
-        {prs::riscv_opcode_t::LUI, prs::uop_processor_t::lui_func},
-        {prs::riscv_opcode_t::AUIPC, prs::uop_processor_t::auipc_func},
+const std::unordered_map<cg::riscv_opcode_t,
+                         void (*)(cg::riscv_simulator_t &,
+                                  std::span<const cg::riscv_operand_t>)>
+    cg::riscv_simulator_t::i_opc_actions = {
+        {cg::riscv_opcode_t::ADD, cg::uop_processor_t::add_func},
+        {cg::riscv_opcode_t::SUB, cg::uop_processor_t::sub_func},
+        {cg::riscv_opcode_t::OR, cg::uop_processor_t::or_func},
+        {cg::riscv_opcode_t::XOR, cg::uop_processor_t::xor_func},
+        {cg::riscv_opcode_t::AND, cg::uop_processor_t::and_func},
+        {cg::riscv_opcode_t::SRL, cg::uop_processor_t::srl_func},
+        {cg::riscv_opcode_t::SLL, cg::uop_processor_t::sll_func},
+        {cg::riscv_opcode_t::SRA, cg::uop_processor_t::sra_func},
+        {cg::riscv_opcode_t::SLT, cg::uop_processor_t::slt_func},
+        {cg::riscv_opcode_t::SLTU, cg::uop_processor_t::sltu_func},
+        {cg::riscv_opcode_t::ADDI, cg::uop_processor_t::addi_func},
+        {cg::riscv_opcode_t::ORI, cg::uop_processor_t::ori_func},
+        {cg::riscv_opcode_t::XORI, cg::uop_processor_t::xori_func},
+        {cg::riscv_opcode_t::ANDI, cg::uop_processor_t::andi_func},
+        {cg::riscv_opcode_t::SRLI, cg::uop_processor_t::srli_func},
+        {cg::riscv_opcode_t::SLLI, cg::uop_processor_t::slli_func},
+        {cg::riscv_opcode_t::SRAI, cg::uop_processor_t::srai_func},
+        {cg::riscv_opcode_t::JALR, cg::uop_processor_t::jalr_func},
+        {cg::riscv_opcode_t::LB, cg::uop_processor_t::lb_func},
+        {cg::riscv_opcode_t::LH, cg::uop_processor_t::lh_func},
+        {cg::riscv_opcode_t::LW, cg::uop_processor_t::lw_func},
+        {cg::riscv_opcode_t::LBU, cg::uop_processor_t::lbu_func},
+        {cg::riscv_opcode_t::LHU, cg::uop_processor_t::lhu_func},
+        {cg::riscv_opcode_t::SLTI, cg::uop_processor_t::slti_func},
+        {cg::riscv_opcode_t::SLTIU, cg::uop_processor_t::sltiu_func},
+        {cg::riscv_opcode_t::ECALL, cg::uop_processor_t::ecall_func},
+        {cg::riscv_opcode_t::EBREAK, cg::uop_processor_t::ebreak_func},
+        {cg::riscv_opcode_t::FENCE, cg::uop_processor_t::fence_func},
+        {cg::riscv_opcode_t::JAL, cg::uop_processor_t::jal_func},
+        {cg::riscv_opcode_t::BEQ, cg::uop_processor_t::beq_func},
+        {cg::riscv_opcode_t::BNE, cg::uop_processor_t::bne_func},
+        {cg::riscv_opcode_t::BLT, cg::uop_processor_t::blt_func},
+        {cg::riscv_opcode_t::BGE, cg::uop_processor_t::bge_func},
+        {cg::riscv_opcode_t::BLTU, cg::uop_processor_t::bltu_func},
+        {cg::riscv_opcode_t::BGEU, cg::uop_processor_t::bgeu_func},
+        {cg::riscv_opcode_t::SB, cg::uop_processor_t::sb_func},
+        {cg::riscv_opcode_t::SH, cg::uop_processor_t::sh_func},
+        {cg::riscv_opcode_t::SW, cg::uop_processor_t::sw_func},
+        {cg::riscv_opcode_t::LUI, cg::uop_processor_t::lui_func},
+        {cg::riscv_opcode_t::AUIPC, cg::uop_processor_t::auipc_func},
 };
 
-const std::unordered_map<prs::riscv_opcode_t,
-                         void (*)(prs::riscv_simulator_t &,
-                                  std::span<const prs::riscv_operand_t>)>
-    prs::riscv_simulator_t::c_opc_actions = {};
+const std::unordered_map<cg::riscv_opcode_t,
+                         void (*)(cg::riscv_simulator_t &,
+                                  std::span<const cg::riscv_operand_t>)>
+    cg::riscv_simulator_t::c_opc_actions = {};
 
-const std::unordered_map<prs::riscv_opcode_t,
-                         void (*)(prs::riscv_simulator_t &,
-                                  std::span<const prs::riscv_operand_t>)>
-    prs::riscv_simulator_t::m_opc_actions = {};
+const std::unordered_map<cg::riscv_opcode_t,
+                         void (*)(cg::riscv_simulator_t &,
+                                  std::span<const cg::riscv_operand_t>)>
+    cg::riscv_simulator_t::m_opc_actions = {};

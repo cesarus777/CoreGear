@@ -3,7 +3,7 @@
 #include <format>
 #include <stdexcept>
 
-namespace prs {
+namespace cg {
 
 class base_exception : public std::runtime_error {
 public:
@@ -59,4 +59,4 @@ public:
       : base_exception(std::format("Unknown RISC-V extension: {}.", ext_str)) {}
 };
 
-} // namespace prs
+} // namespace cg

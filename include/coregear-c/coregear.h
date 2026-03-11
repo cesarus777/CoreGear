@@ -1,12 +1,12 @@
 #pragma once
 
-#include "prs-c/utils.h"
+#include "coregear-c/utils.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int run_prs(int argc, char *argv[]) PRS_NOEXCEPT;
+int coregear_run(int argc, char *argv[]) CG_NOEXCEPT;
 
 #ifdef __cplusplus
 }
