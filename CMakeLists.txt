@@ -10,6 +10,17 @@ set(CMAKE_CXX_MODULE_STD ON)
 
 project (CoreGear VERSION 0.1)
 
+include(FetchContent)
+
+FetchContent_Declare(
+  elfio
+  GIT_REPOSITORY https://github.com/serge1/ELFIO
+  # It's recommended to use a specific tag or commit hash for stability
+  GIT_TAG        Release_3.12
+)
+
+FetchContent_MakeAvailable(elfio)
+
 set(CG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(coregear)
