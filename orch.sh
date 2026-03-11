@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+#set -o xtrace
 
 usage() {
   echo "[USAGE]: $0 {config|build|test} [subcommand specific options]"
@@ -37,7 +42,7 @@ run_configure() {
   done
 
   sh -x -c "cmake -S . -B $build_dir -DCMAKE_BUILD_TYPE=$build_type --preset $preset"
-  [ "$exit_at_end" = "yes" ] && exit 0
+  if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_build() {
@@ -69,7 +74,7 @@ run_build() {
   done
 
   sh -x -c "cmake --build $build_dir --target $target"
-  [ "$exit_at_end" = "yes" ] && exit 0
+  if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_test() {
@@ -96,7 +101,7 @@ run_test() {
   done
 
   sh -x -c "ctest --test-dir $build_dir"
-  [ "$exit_at_end" = "yes" ] && exit 0
+  if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_everything() {
@@ -105,7 +110,9 @@ run_everything() {
     shift $#
   fi
 
-  run_configure --preset base_with_tests
+  preset="${EVERYTHING_PRESET:-base_with_tests}"
+
+  run_configure --preset "$preset"
   run_build
   run_test
 

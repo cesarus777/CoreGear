@@ -1,0 +1,30 @@
+name: CoreGear CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/mattkretz/cplusplus-ci/gcc15
+
+    steps:
+    - name: Checkout repository
+      # Uses the official action to check out the code
+      uses: actions/checkout@v4
+
+    - name: Install riscv toolchain
+      run: apt install -y gcc-riscv64-unknown-elf
+
+    - name: Set PATH for cmake-latest
+      run: echo /opt/cmake-latest/bin >> $GITHUB_PATH
+
+    - name: Run everything
+      # Configures, build and test the project
+      env:
+        EVERYTHING_PRESET: base_with_tests
+      run: ./orch.sh everything
