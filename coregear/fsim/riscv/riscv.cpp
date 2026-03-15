@@ -10,16 +10,16 @@ module;
 module coregear.fsim.riscv;
 
 void cg::riscv::simulator_t::process_write() {
-  auto guest_fd = regs.read(abi_reg_t::a0);
+  auto guest_fd = regs.read(gpr_abi_t::a0);
   auto host_fd = open_fds.at(guest_fd);
-  auto addr = to_addr(regs.read(abi_reg_t::a1));
-  auto len = regs.read(abi_reg_t::a2);
+  auto addr = to_addr(regs.read(gpr_abi_t::a1));
+  auto len = regs.read(gpr_abi_t::a2);
   auto written = 0;
   for (auto i : std::views::iota(0, len)) {
     char data = memory.read_byte(addr + i);
     written += write(host_fd, &data, 1);
   }
-  regs.write(abi_reg_t::a0, written);
+  regs.write(gpr_abi_t::a0, written);
 }
 
 void cg::riscv::coregear_run(cg::riscv::options_t opts) {

@@ -15,7 +15,7 @@ import std;
 
 export namespace cg::riscv {
 
-constexpr size_t bytes_in_word = 4;
+constexpr size_t bytes_in_word = sizeof(word_t);
 constexpr size_t bits_in_byte = 8;
 constexpr size_t num_bytes_in_inst = 4;
 constexpr size_t num_bits_in_inst = bits_in_byte * num_bytes_in_inst;
@@ -27,12 +27,17 @@ static_assert(num_bits_in_inst == sizeof(word_t) * host_byte_bits);
 constexpr size_t pc_step = num_bytes_in_inst;
 constexpr size_t xlen = 32;
 
+using reg_id_t = size_t;
+
 using reg_t = word_t;
 using ureg_t = uword_t;
 
 static_assert(sizeof(reg_t) == sizeof(ureg_t));
 
-inline reg_t to_reg(ureg_t r) { return std::bit_cast<reg_t>(r); }
+inline reg_t to_reg(ureg_t r) {
+  static_assert(sizeof(reg_t) == sizeof(ureg_t));
+  return std::bit_cast<reg_t>(r);
+}
 
 inline ureg_t to_ureg(reg_t r) {
   static_assert(sizeof(reg_t) == sizeof(ureg_t));
@@ -44,89 +49,156 @@ inline addr_t to_addr(reg_t r) {
   return std::bit_cast<addr_t>(r);
 }
 
-enum class abi_reg_t {
-  zero = 0,
-  ra = 1,
-  sp = 2,
-  gp = 3,
-  tp = 4,
-  t0 = 5,
-  t1 = 6,
-  t2 = 7,
-  s0 = 8,
-  s1 = 9,
-  a0 = 10,
-  a1 = 11,
-  a2 = 12,
-  a3 = 13,
-  a4 = 14,
-  a5 = 15,
-  a6 = 17,
-  a7 = 17,
-  s2 = 18,
-  s3 = 19,
-  s4 = 20,
-  s5 = 21,
-  s6 = 22,
-  s7 = 23,
-  s8 = 24,
-  s9 = 25,
-  s10 = 26,
-  s11 = 27,
-  t3 = 28,
-  t4 = 29,
-  t5 = 30,
-  t6 = 31,
+#define CG_FSIM_RISCV_GPRS(X)                                                  \
+  X(x0, 0, zero)                                                               \
+  X(x1, 1, ra)                                                                 \
+  X(x2, 2, sp)                                                                 \
+  X(x3, 3, gp)                                                                 \
+  X(x4, 4, tp)                                                                 \
+  X(x5, 5, t0)                                                                 \
+  X(x6, 6, t1)                                                                 \
+  X(x7, 7, t2)                                                                 \
+  X(x8, 8, s0)                                                                 \
+  X(x9, 9, s1)                                                                 \
+  X(x10, 10, a0)                                                               \
+  X(x11, 11, a1)                                                               \
+  X(x12, 12, a2)                                                               \
+  X(x13, 13, a3)                                                               \
+  X(x14, 14, a4)                                                               \
+  X(x15, 15, a5)                                                               \
+  X(x16, 16, a6)                                                               \
+  X(x17, 17, a7)                                                               \
+  X(x18, 18, s2)                                                               \
+  X(x19, 19, s3)                                                               \
+  X(x20, 20, s4)                                                               \
+  X(x21, 21, s5)                                                               \
+  X(x22, 22, s6)                                                               \
+  X(x23, 23, s7)                                                               \
+  X(x24, 24, s8)                                                               \
+  X(x25, 25, s9)                                                               \
+  X(x26, 26, s10)                                                              \
+  X(x27, 27, s11)                                                              \
+  X(x28, 28, t3)                                                               \
+  X(x29, 29, t4)                                                               \
+  X(x30, 30, t5)                                                               \
+  X(x31, 31, t6)
+
+#define CG_FSIM_RISCV_GPR_ID_ITEM(reg, id, ...) reg = id,
+
+enum class gpr_t { CG_FSIM_RISCV_GPRS(CG_FSIM_RISCV_GPR_ID_ITEM) };
+
+#define CG_FSIM_RISCV_GPR_ABI_ID_ITEM(reg, id, abi, ...) abi = id,
+
+enum class gpr_abi_t { CG_FSIM_RISCV_GPRS(CG_FSIM_RISCV_GPR_ABI_ID_ITEM) };
+
+#define CG_FSIM_RISCV_ADD_ONE(...) +1
+
+template <typename T>
+concept gpr_reg_id_enum_c =
+    std::is_same_v<T, gpr_t> || std::is_same_v<T, gpr_abi_t>;
+
+template <gpr_reg_id_enum_c T, std::integral U> bool operator==(T x, U y) {
+  return static_cast<unsigned long long>(x) ==
+         static_cast<unsigned long long>(y);
+}
+
+class gpr_reg_class_t {
+public:
+  static constexpr std::size_t n_regs =
+      CG_FSIM_RISCV_GPRS(CG_FSIM_RISCV_ADD_ONE);
+  static constexpr std::size_t first_reg_id = 0;
+
+  static constexpr std::array ro_regs = {static_cast<reg_id_t>(gpr_t::x0)};
+
+  static void log_reg(logger_t &logger, reg_id_t reg_id) {
+    logger << 'x' << std::setw(2) << std::left << std::setfill(' ') << reg_id;
+  }
+
+  static void log_reg_data(logger_t &logger, reg_t data) {
+    logger << "0x" << std::hex << std::setw(sizeof(reg_t) * 2) << std::right
+           << std::setfill('0') << data << std::dec;
+  }
+
+  static void log_read(logger_t &logger, reg_id_t reg_id, reg_t data) {
+    log_reg(logger, reg_id);
+    logger << " ==> ";
+    log_reg_data(logger, data);
+    logger << '\n';
+    logger.flush();
+  }
+
+  static void log_write(logger_t &logger, reg_id_t reg_id, reg_t data) {
+    log_reg(logger, reg_id);
+    logger << " <== ";
+    log_reg_data(logger, data);
+    logger << '\n';
+    logger.flush();
+  }
+
+  static std::string to_str(reg_id_t reg_id) {
+    return std::format("x{}", reg_id);
+  }
+};
+
+class gpr_reg_file_t {
+  std::array<reg_t, gpr_reg_class_t::n_regs> regs = {0};
+
+public:
+  auto read(reg_id_t reg_id, logger_t *logger = nullptr) const {
+    CG_ASSERT(gpr_reg_class_t::first_reg_id < reg_id <
+              gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
+    auto data = regs[reg_id];
+    if (logger)
+      gpr_reg_class_t::log_read(*logger, reg_id, data);
+    return data;
+  }
+
+  template <gpr_reg_id_enum_c id_t>
+  auto read(id_t reg_id, logger_t *logger = nullptr) const {
+    return read(static_cast<reg_id_t>(reg_id), logger);
+  }
+
+  void write(reg_id_t reg_id, reg_t data, logger_t *logger = nullptr) {
+    if (reg_id == gpr_t::x0)
+      return;
+    CG_ASSERT(gpr_reg_class_t::first_reg_id < reg_id <
+              gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
+    regs[reg_id] = data;
+    if (logger)
+      gpr_reg_class_t::log_write(*logger, reg_id, data);
+  }
+
+  template <gpr_reg_id_enum_c id_t>
+  auto write(id_t reg_id, reg_t data, logger_t *logger = nullptr) {
+    return write(static_cast<reg_id_t>(reg_id), data, logger);
+  }
 };
 
 class reg_file_t final {
 public:
-  static constexpr size_t n_gpr_regs = 32;
+  using gpr_data_t = reg_t;
 
 private:
-  std::array<reg_t, n_gpr_regs> regs = {0};
+  gpr_reg_file_t gpr_regs;
   ureg_t pc = 0x0;
   // TODO: make logger const in const methods
   mutable logger_t logger;
 
-  void log_read(size_t reg, reg_t data) const {
-    logger << 'x' << std::setw(2) << std::left << std::setfill(' ') << reg
-           << " ==> 0x" << std::hex << std::setw(8) << std::right
-           << std::setfill('0') << data << std::dec << '\n';
-    logger.flush();
-  }
-
-  void log_write(size_t reg, reg_t data) const {
-    logger << 'x' << std::setw(2) << std::left << std::setfill(' ') << reg
-           << " <== 0x" << std::hex << std::setw(8) << std::right
-           << std::setfill('0') << data << std::dec << '\n';
-    logger.flush();
-  }
-
 public:
   reg_file_t(enabled_extensions_t en_exts, logger_t l) : logger(std::move(l)) {}
 
-  reg_t read(size_t reg) const {
-    CG_ASSERT(reg < n_gpr_regs);
-    auto data = regs[reg];
-    log_read(reg, data);
-    return data;
+  gpr_data_t read(reg_id_t reg) const { return gpr_regs.read(reg, &logger); }
+
+  template <gpr_reg_id_enum_c id_t> auto read(id_t reg_id) const {
+    return gpr_regs.read(reg_id, &logger);
   }
 
-  reg_t read(abi_reg_t reg) const {
-    return read(static_cast<size_t>(reg));
+  void write(reg_id_t reg, gpr_data_t data) {
+    return gpr_regs.write(reg, data, &logger);
   }
 
-  void write(size_t reg, reg_t data) {
-    if (reg == 0)
-      return;
-    CG_ASSERT(reg < n_gpr_regs);
-    regs[reg] = data;
-    log_write(reg, data);
-  }
-
-  void write(abi_reg_t reg, reg_t data) {
-    return write(static_cast<size_t>(reg), data);
+  template <gpr_reg_id_enum_c id_t> auto write(id_t reg_id, gpr_data_t data) {
+    return gpr_regs.write(reg_id, data, &logger);
   }
 
   ureg_t get_pc() const { return pc; }

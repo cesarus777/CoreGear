@@ -272,20 +272,20 @@ using operand_info_t =
     cg::operand_info_t<reg_operand_info_t, imm_operand_info_t,
                        csr_operand_info_t>;
 
-class reg_operand_t final : private reg_operand_info_t {
+class gpr_operand_t final : private reg_operand_info_t {
 public:
   using op_info_t = reg_operand_info_t;
 
 private:
-  size_t reg;
+  reg_id_t id;
 
 public:
-  reg_operand_t(reg_operand_info_t op_info, size_t reg_num)
-      : reg_operand_info_t(op_info), reg(reg_num) {
-    CG_ASSERT(reg_num < reg_file_t::n_gpr_regs);
+  gpr_operand_t(reg_operand_info_t op_info, reg_id_t reg_id)
+      : reg_operand_info_t(op_info), id(reg_id) {
+    CG_ASSERT(id < gpr_reg_class_t::n_regs);
   }
 
-  auto get_reg() const { return reg; }
+  auto get_reg_id() const { return id; }
 
   using reg_operand_info_t::is_dst;
 };
@@ -320,19 +320,19 @@ public:
   auto csr() const noexcept { return csr_data; }
 };
 
-using operand_t = cg::operand_t<reg_operand_t, imm_operand_t, csr_operand_t>;
+using operand_t = cg::operand_t<gpr_operand_t, imm_operand_t, csr_operand_t>;
 
-class reg_operand_matcher_t {
+class gpr_operand_matcher_t {
 public:
   using inst_type = inst_t;
-  using extract_type = size_t;
+  using extract_type = reg_id_t;
 
 private:
   inst_t filter_mask;
   size_t offset;
 
 public:
-  reg_operand_matcher_t(inst_t filter, size_t offset) noexcept
+  gpr_operand_matcher_t(inst_t filter, reg_id_t offset) noexcept
       : filter_mask(filter), offset(offset) {}
 
   size_t extract(inst_t inst) const noexcept {
@@ -510,7 +510,7 @@ public:
 };
 
 using operand_matcher_t =
-    cg::operand_matcher_t<reg_operand_matcher_t, imm_operand_matcher_t,
+    cg::operand_matcher_t<gpr_operand_matcher_t, imm_operand_matcher_t,
                           csr_operand_matcher_t>;
 
 } // namespace cg::riscv
@@ -521,8 +521,8 @@ using operand_matcher_t =
     using matcher_type = cg::riscv::matcher;                                   \
   }
 
-CG_RISCV_MAP_OP_INFO_TO_OP(reg_operand_info_t, reg_operand_t,
-                           reg_operand_matcher_t);
+CG_RISCV_MAP_OP_INFO_TO_OP(reg_operand_info_t, gpr_operand_t,
+                           gpr_operand_matcher_t);
 CG_RISCV_MAP_OP_INFO_TO_OP(imm_operand_info_t, imm_operand_t,
                            imm_operand_matcher_t);
 CG_RISCV_MAP_OP_INFO_TO_OP(csr_operand_info_t, csr_operand_t,
@@ -550,53 +550,53 @@ inline const typename operand_description_tr::per_enc_t
     operand_description_tr::per_enc = {
         {static_cast<encoding_id_t>(encoding_t::RTYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x000f8000, 15)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x01f00000, 20)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x000f8000, 15)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x01f00000, 20)},
          }},
         {static_cast<encoding_id_t>(encoding_t::ITYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x000f8000, 15)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x000f8000, 15)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::ITYPE)},
          }},
         {static_cast<encoding_id_t>(encoding_t::STYPE),
          {
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x000f8000, 15)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x01f00000, 20)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x000f8000, 15)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x01f00000, 20)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::STYPE)},
          }},
         {static_cast<encoding_id_t>(encoding_t::BTYPE),
          {
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x000f8000, 15)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x01f00000, 20)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x000f8000, 15)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x01f00000, 20)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::BTYPE)},
          }},
         {static_cast<encoding_id_t>(encoding_t::UTYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::UTYPE)},
          }},
         {static_cast<encoding_id_t>(encoding_t::JTYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::JTYPE)},
          }},
         {static_cast<encoding_id_t>(encoding_t::SYSTYPE), {}},
         {static_cast<encoding_id_t>(encoding_t::CSRTYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
-             {reg_operand_info_t(false), reg_operand_matcher_t(0x000f8000, 15)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(false), gpr_operand_matcher_t(0x000f8000, 15)},
              {csr_operand_info_t(), csr_operand_matcher_t()},
          }},
         {static_cast<encoding_id_t>(encoding_t::CSRITYPE),
          {
-             {reg_operand_info_t(true), reg_operand_matcher_t(0x00000f80, 7)},
+             {reg_operand_info_t(true), gpr_operand_matcher_t(0x00000f80, 7)},
              {imm_operand_info_t(),
               imm_operand_matcher_t::per_enc.at(encoding_t::CSRITYPE)},
              {csr_operand_info_t(), csr_operand_matcher_t()},
@@ -623,7 +623,9 @@ using decoded_inst_t = cg::decoded_inst_t<opcode_t, operand_t>;
 template <> struct cg::op_traits<cg::riscv::operand_t> {
   static auto print_visitor(auto &&l) {
     return utils::overloaded(
-        [&](cg::riscv::reg_operand_t reg) { l << "\tx" << reg.get_reg(); },
+        [&](cg::riscv::gpr_operand_t gpr) {
+          l << '\t' << cg::riscv::gpr_reg_class_t::to_str(gpr.get_reg_id());
+        },
         [&](cg::riscv::imm_operand_t imm) { l << '\t' << imm.imm(); },
         [&](cg::riscv::csr_operand_t csr) { l << "\tCSR"; });
   }
@@ -938,9 +940,9 @@ class simulator_t {
   template <bool is_dst = src> static size_t extract_reg(operand_t op) {
     size_t reg;
     op.visit(
-        [&reg](reg_operand_t reg_op) {
+        [&reg](gpr_operand_t reg_op) {
           CG_ASSERT(reg_op.is_dst() == is_dst);
-          reg = reg_op.get_reg();
+          reg = reg_op.get_reg_id();
         },
         [](auto other_ops) { CG_ASSERT(false); });
     return reg;
@@ -1101,37 +1103,37 @@ class simulator_t {
   std::unordered_map<int, int> open_fds = {{0, 0}, {1, 1}, {2, 2}};
 
   void process_close() {
-    auto guest_fd = regs.read(abi_reg_t::a0);
+    auto guest_fd = regs.read(gpr_abi_t::a0);
     auto fd_pos = open_fds.find(guest_fd);
     if (fd_pos == open_fds.end()) {
-      regs.write(abi_reg_t::a0, -1);
+      regs.write(gpr_abi_t::a0, -1);
       return;
     }
     open_fds.erase(fd_pos);
-    regs.write(abi_reg_t::a0, 0);
+    regs.write(gpr_abi_t::a0, 0);
   }
 
   void process_write();
 
   void process_newfstat() {
-    regs.write(abi_reg_t::a0, -1); // unimplemented
+    regs.write(gpr_abi_t::a0, -1); // unimplemented
   }
 
   void process_exit() {
-    auto ret_val = regs.read(abi_reg_t::a0);
+    auto ret_val = regs.read(gpr_abi_t::a0);
     std::cerr << "`exit` called. Exiting." << std::endl;
     std::exit(ret_val);
   }
 
   void process_brk() {
-    auto addr = to_addr(regs.read(abi_reg_t::a0));
+    auto addr = to_addr(regs.read(gpr_abi_t::a0));
     memory.extend_upto(addr);
-    regs.write(abi_reg_t::a0, 0);
+    regs.write(gpr_abi_t::a0, 0);
   }
 
   void exec_ecall(std::span<const operand_t> ops) {
     CG_ASSERT(ops.empty());
-    auto syscall_num = regs.read(abi_reg_t::a7);
+    auto syscall_num = regs.read(gpr_abi_t::a7);
     switch (static_cast<syscall_num_t>(syscall_num)) {
     default:
       CG_UNREACHABLE(std::format("Unsupported ecall: {}", syscall_num));
@@ -1235,7 +1237,7 @@ public:
     memory.load_section(data, size, addr);
   }
 
-  void init_sp(reg_t sp) { regs.write(abi_reg_t::sp, sp); }
+  void init_sp(addr_t sp) { regs.write(gpr_abi_t::sp, sp); }
 
   friend class uop_processor_t;
 };
