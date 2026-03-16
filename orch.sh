@@ -14,6 +14,7 @@ run_configure() {
   preset="base"
   build_type="Release"
   build_dir="build/$build_type"
+  clang_stdlib_modules_wa="OFF"
 
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -21,15 +22,19 @@ run_configure() {
         exit_at_end="yes"
         shift
         ;;
+      "--clang-libcxx-wa")
+        clang_stdlib_modules_wa="ON"
+        shift 1
+        ;;
       "--preset" | "-p")
         preset="$2"
         shift 2
         ;;
-      "--build_type")
+      "--build-type")
         build_type="$2"
         shift 2
         ;;
-      "--build_dir" | "-b")
+      "--build-dir" | "-b")
         build_dir="$2"
         shift 2
         ;;
@@ -41,9 +46,8 @@ run_configure() {
     esac
   done
 
-  sh -x -c "cmake -S . -B $build_dir -DCMAKE_BUILD_TYPE=$build_type --preset $preset"
-  if [ "$exit_at_end" = "yes" ]; then exit 0; fi
-}
+  sh -x -c "cmake -S . -B $build_dir -DCMAKE_BUILD_TYPE=$build_type --preset $preset -DCLANG_STDLIB_MODULES_JSON_WA=$clang_stdlib_modules_wa"
+  if [ "$exit_at_end" = "yes" ]; then exit 0; fi }
 
 run_build() {
   exit_at_end=""
@@ -61,7 +65,7 @@ run_build() {
         target="$2"
         shift 2
         ;;
-      "--build_dir" | "-b")
+      "--build-dir" | "-b")
         build_dir="$2"
         shift 2
         ;;
@@ -88,7 +92,7 @@ run_test() {
         exit_at_end="yes"
         shift
         ;;
-      "--build_dir" | "-b")
+      "--build-dir" | "-b")
         build_dir="$2"
         shift 2
         ;;
@@ -105,16 +109,39 @@ run_test() {
 }
 
 run_everything() {
-  if [ $# -gt 0 ]; then
-    echo "Warning: 'everything' command ignores all options" >&2
-    shift $#
-  fi
+  preset="base"
+  build_type="Release"
+  build_dir="build/$build_type"
+  clang_libcxx_wa=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      "--clang-libcxx-wa")
+        clang_libcxx_wa="--clang-libcxx-wa"
+        shift 1
+        ;;
+      "--preset" | "-p")
+        preset="$2"
+        shift 2
+        ;;
+      "--build-type")
+        build_type="$2"
+        shift 2
+        ;;
+      "--build-dir" | "-b")
+        build_dir="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option '$1'" >&2
+        usage
+        exit 2
+        ;;
+    esac
+  done
 
-  preset="${EVERYTHING_PRESET:-base_with_tests}"
-
-  run_configure --preset "$preset"
-  run_build
-  run_test
+  run_configure --preset "$preset" --build-type "${build_type}" --build-dir "${build_dir}" $clang_libcxx_wa
+  run_build --build-dir "${build_dir}"
+  run_test --build-dir "${build_dir}"
 
   exit 0
 }
@@ -124,7 +151,7 @@ main() {
     echo "Subcommand expected" >&2
     exit 2
   fi
-  
+
   subcommand="$1"
   shift
   case "$subcommand" in

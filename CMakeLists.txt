@@ -8,9 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_MODULE_STD ON)
 
+if(CLANG_STDLIB_MODULES_JSON_WA)
+  set(CMAKE_CXX_STDLIB_MODULES_JSON "/usr/lib/llvm-21/lib/libc++.modules.json")
+  message(STATUS "clang libc++.modules.json WA enabled")
+endif()
+
 project (CoreGear VERSION 0.1)
 
 include(FetchContent)
+set(FETCHCONTENT_QUIET OFF CACHE BOOL "Disable quiet mode for FetchContent" FORCE)
 
 FetchContent_Declare(
   elfio

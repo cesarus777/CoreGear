@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  gcc:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/mattkretz/cplusplus-ci/gcc15
@@ -24,7 +24,24 @@ jobs:
       run: echo /opt/cmake-latest/bin >> $GITHUB_PATH
 
     - name: Run everything
-      # Configures, build and test the project
-      env:
-        EVERYTHING_PRESET: base_with_tests
-      run: ./orch.sh everything
+      # Configures, builds and tests the project
+      run: ./orch.sh everything --preset base_with_tests
+  clang:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/mattkretz/cplusplus-ci/clang21
+
+    steps:
+    - name: Checkout repository
+      # Uses the official action to check out the code
+      uses: actions/checkout@v4
+
+    - name: Install riscv toolchain
+      run: apt install -y gcc-riscv64-unknown-elf
+
+    - name: Set PATH for cmake-latest
+      run: echo /opt/cmake-latest/bin >> $GITHUB_PATH
+
+    - name: Run everything
+      # Configures, builds and tests the project
+      run: ./orch.sh everything --preset base_clang_with_tests --clang-libcxx-wa
