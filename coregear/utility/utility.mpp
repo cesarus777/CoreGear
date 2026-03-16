@@ -2,6 +2,8 @@ module;
 
 #include <coregear/utility/assert.hpp>
 
+#include <version>
+
 export module coregear.utility;
 
 export import :assert;
@@ -9,6 +11,18 @@ export import :logger;
 export import :unreachable;
 
 export namespace cg::utils {
+
+template <typename R>
+  requires std::ranges::input_range<R> &&
+           std::move_constructible<std::ranges::range_reference_t<R>> &&
+           std::move_constructible<std::ranges::range_rvalue_reference_t<R>>
+auto enumerate(R &&r) {
+#if defined(_LIBCPP_VERSION) // libc++ didn't support std::views::enumerate yet
+  return std::ranges::zip_view(std::views::iota(0), r);
+#else
+  return std::ranges::enumerate_view(r);
+#endif
+}
 
 template <typename T, template <typename...> typename U>
 inline constexpr bool is_instance_of = false;

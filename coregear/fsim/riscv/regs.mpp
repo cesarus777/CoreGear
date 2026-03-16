@@ -145,8 +145,8 @@ class gpr_reg_file_t {
 
 public:
   auto read(reg_id_t reg_id, logger_t *logger = nullptr) const {
-    CG_ASSERT(gpr_reg_class_t::first_reg_id < reg_id <
-              gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
+    CG_ASSERT(gpr_reg_class_t::first_reg_id <= reg_id &&
+              reg_id < gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
     auto data = regs[reg_id];
     if (logger)
       gpr_reg_class_t::log_read(*logger, reg_id, data);
@@ -161,8 +161,8 @@ public:
   void write(reg_id_t reg_id, reg_t data, logger_t *logger = nullptr) {
     if (reg_id == gpr_t::x0)
       return;
-    CG_ASSERT(gpr_reg_class_t::first_reg_id < reg_id <
-              gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
+    CG_ASSERT(gpr_reg_class_t::first_reg_id <= reg_id &&
+              reg_id < gpr_reg_class_t::first_reg_id + gpr_reg_class_t::n_regs);
     regs[reg_id] = data;
     if (logger)
       gpr_reg_class_t::log_write(*logger, reg_id, data);

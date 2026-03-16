@@ -5,7 +5,7 @@ find_program(RISCV_CC NAMES ${RISCV_CC_CANDIDATES})
 if (RISCV_CC)
   message("-- Found RISC-V compiler: ${RISCV_CC}")
 else()
-  error("-- RISC-V compiler not found!")
+  message(SEND_ERROR "-- RISC-V compiler not found!")
 endif()
 
 add_custom_command(

@@ -405,8 +405,7 @@ public:
 
   reg_t extract(inst_t inst) const {
     reg_t imm = 0;
-    // for (auto [tgt_idx, src_idx] : bit_mapping | std::views::enumerate)
-    for (auto [tgt_idx, src_idx] : std::ranges::enumerate_view(bit_mapping))
+    for (auto [tgt_idx, src_idx] : utils::enumerate(bit_mapping))
       imm = set_bit(imm, tgt_idx, get_bit(inst, src_idx));
     return imm;
   }
