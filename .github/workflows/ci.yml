@@ -44,4 +44,4 @@ jobs:
 
     - name: Run everything
       # Configures, builds and tests the project
-      run: ./orch.sh everything --preset base_clang_with_tests --clang-libcxx-wa
+      run: ./orch.sh everything --preset base_clang_with_tests --clang-libcxx-wa --profile clang.txt

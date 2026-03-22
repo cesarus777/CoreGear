@@ -1,4 +1,6 @@
 .cache/
 build/
+build_clang/
 install/
 compile_commands.json
+CMakeUserPresets.json
