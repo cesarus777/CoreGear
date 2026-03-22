@@ -32,6 +32,9 @@ using reg_id_t = size_t;
 using reg_t = word_t;
 using ureg_t = uword_t;
 
+using dreg_t = dword_t;
+using udreg_t = udword_t;
+
 static_assert(sizeof(reg_t) == sizeof(ureg_t));
 
 inline reg_t to_reg(ureg_t r) {
@@ -42,6 +45,44 @@ inline reg_t to_reg(ureg_t r) {
 inline ureg_t to_ureg(reg_t r) {
   static_assert(sizeof(reg_t) == sizeof(ureg_t));
   return std::bit_cast<ureg_t>(r);
+}
+
+inline reg_t to_reg(dreg_t r) {
+  static_assert(2 * sizeof(reg_t) == sizeof(dreg_t));
+  CG_ASSERT(r >= std::numeric_limits<reg_t>::min());
+  CG_ASSERT(r <= std::numeric_limits<reg_t>::max());
+  return static_cast<reg_t>(r);
+}
+
+inline ureg_t to_ureg(udreg_t r) {
+  static_assert(2 * sizeof(ureg_t) == sizeof(udreg_t));
+  CG_ASSERT(r >= std::numeric_limits<ureg_t>::min());
+  CG_ASSERT(r <= std::numeric_limits<ureg_t>::max());
+  return static_cast<ureg_t>(r);
+}
+
+inline dreg_t to_dreg(reg_t r) {
+  static_assert(2 * sizeof(reg_t) == sizeof(dreg_t));
+  return static_cast<dreg_t>(r);
+}
+
+inline udreg_t to_udreg(ureg_t r) {
+  static_assert(2 * sizeof(ureg_t) == sizeof(udreg_t));
+  return static_cast<udreg_t>(r);
+}
+
+inline reg_t to_reg(udreg_t r) { return to_reg(to_dreg(r)); }
+
+inline ureg_t to_ureg(dreg_t r) { return to_ureg(to_udreg(r)); }
+
+inline dreg_t to_dreg(ureg_t r) {
+  static_assert(2 * sizeof(reg_t) == sizeof(dreg_t));
+  return to_dreg(to_reg(r));
+}
+
+inline udreg_t to_udreg(reg_t r) {
+  static_assert(2 * sizeof(ureg_t) == sizeof(udreg_t));
+  return to_udreg(to_ureg(r));
 }
 
 inline addr_t to_addr(reg_t r) {

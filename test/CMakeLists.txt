@@ -22,4 +22,8 @@ add_test(
   COMMAND cg_riscv_sim i "${CMAKE_CURRENT_BINARY_DIR}/hello-min-rv32i.x"
 )
 
+set_tests_properties(TestRV32I_MinimalHello PROPERTIES
+    PASS_REGULAR_EXPRESSION "Hello World!"
+)
+
 set_tests_properties(TestRV32I_MinimalHello PROPERTIES DEPENDS CoreGearE2ETests)

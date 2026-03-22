@@ -21,12 +21,12 @@ template <operand_info_impl_c... infos_t> class operand_info_t {
 public:
   template <typename T>
     requires(std::same_as<T, infos_t> || ...)
-  operand_info_t(T op_info) : info(std::move(op_info)) {}
+  constexpr operand_info_t(T op_info) : info(std::move(op_info)) {}
 
-  auto &get() const & { return info; }
+  constexpr auto &get() const & { return info; }
 
   template <typename self_t, typename... fs_t>
-  auto visit(this self_t &&self, fs_t &&...funcs) {
+  constexpr auto visit(this self_t &&self, fs_t &&...funcs) {
     return std::visit(utils::overloaded(std::forward<fs_t>(funcs)...),
                       std::forward<self_t>(self).info);
   }
@@ -45,12 +45,12 @@ template <operand_impl_c... ops_t> class operand_t final {
 public:
   template <typename op_info_t, typename... args_t>
     requires(std::same_as<op_info_t, typename ops_t::op_info_t> || ...)
-  operand_t(op_info_t op_info, args_t &&...args)
+  constexpr operand_t(op_info_t op_info, args_t &&...args)
       : op(typename op_info_traits<op_info_t>::op_type(
             op_info, std::forward<args_t>(args)...)) {}
 
   template <typename self_t, typename... fs_t>
-  auto visit(this self_t &&self, fs_t &&...funcs) {
+  constexpr auto visit(this self_t &&self, fs_t &&...funcs) {
     return std::visit(utils::overloaded(std::forward<fs_t>(funcs)...),
                       std::forward<self_t>(self).op);
   }
