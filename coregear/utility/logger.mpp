@@ -8,9 +8,12 @@ import :assert;
 
 import std;
 
-namespace cg {
+export namespace cg {
 
-export class logger_t final {
+constexpr class null_logger_t {
+} null_logger;
+
+class logger_t final {
   std::ostream *logger;
 
 public:
@@ -21,30 +24,34 @@ public:
 
   logger_t(std::ostream &os) : logger(&os) {}
 
+  logger_t(null_logger_t) : logger(nullptr) {}
+
   template <typename T> logger_t &operator<<(T &&arg) {
-    CG_ASSERT(logger);
-    *logger << std::forward<T>(arg);
+    if (logger)
+      *logger << std::forward<T>(arg);
     return *this;
   }
 
   operator bool() const {
-    CG_ASSERT(logger);
-    return static_cast<bool>(*logger);
+    if (logger)
+      return static_cast<bool>(*logger);
+    return true;
   }
 
   auto exceptions() const {
-    CG_ASSERT(logger);
-    return logger->exceptions();
+    if (logger)
+      return logger->exceptions();
+    return std::ios_base::iostate{};
   }
 
   void exceptions(std::ios_base::iostate except) const {
-    CG_ASSERT(logger);
-    logger->exceptions(except);
+    if (logger)
+      logger->exceptions(except);
   }
 
   logger_t &flush() {
-    CG_ASSERT(logger);
-    logger->flush();
+    if (logger)
+      logger->flush();
     return *this;
   }
 };

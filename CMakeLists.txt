@@ -24,14 +24,20 @@ FetchContent_Declare(
   # It's recommended to use a specific tag or commit hash for stability
   GIT_TAG        Release_3.12
 )
-
 FetchContent_MakeAvailable(elfio)
 
 set(CG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(coregear)
-
 if (CG_ENABLE_TESTING)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    # Use the specific tag for version 1.14.0
+    GIT_TAG        v1.14.0
+  )
+  FetchContent_MakeAvailable(googletest)
   include(CTest)
   add_subdirectory(test)
 endif()
+
+add_subdirectory(coregear)

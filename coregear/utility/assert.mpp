@@ -4,9 +4,9 @@ import std;
 
 namespace cg {
 
-export void assert(bool cond, std::string_view cond_str,
-                   std::string_view file_name, int line,
-                   std::optional<std::string_view> msg = {}) {
+export constexpr void assert(bool cond, std::string_view cond_str,
+                             std::string_view file_name, int line,
+                             std::optional<std::string_view> msg = {}) {
   if (cond)
     return;
 
