@@ -29,7 +29,7 @@ class memory_t final {
   std::vector<cell_t> storage;
 
   static constexpr auto bytes_per_cell = sizeof(cell_t) / sizeof(byte_t);
-  static constexpr auto halfs_per_cell = sizeof(cell_t) / sizeof(half_t);
+  static constexpr auto halves_per_cell = sizeof(cell_t) / sizeof(half_t);
   static constexpr auto words_per_cell = sizeof(cell_t) / sizeof(word_t);
   static constexpr auto storage_alignment = bytes_per_cell;
 

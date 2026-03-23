@@ -12,10 +12,10 @@ namespace cg::riscv {
   X(M, m, 2)
 
 enum class extensions_t : size_t {
-#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+#define CG_FSIM_RISCV_EXTENSION_ENUM_ITEM(enumerator, str, num)                \
   enumerator = num,
-  CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
-#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
+  CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENSION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENSION_ENUM_ITEM
 };
 
 #define ADD_ONE(enumerator, str, num) +1
@@ -33,9 +33,9 @@ public:
 
   enabled_extensions_t() = default;
 
-  enabled_extensions_t(std::string_view extentions_str) {
+  enabled_extensions_t(std::string_view extensions_str) {
     // TODO: support multichar extensions
-    std::ranges::transform(extentions_str,
+    std::ranges::transform(extensions_str,
                            std::inserter(en_exts, en_exts.end()), [](char c) {
                              try {
                                return StrToExt.at(std::string(1, c));
@@ -53,18 +53,18 @@ public:
 
 const std::unordered_map<extensions_t, std::string>
     enabled_extensions_t::ExtToStr = {
-#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+#define CG_FSIM_RISCV_EXTENSION_ENUM_ITEM(enumerator, str, num)                \
   {extensions_t::enumerator, #str},
-        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
-#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
+        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENSION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENSION_ENUM_ITEM
 };
 
 const std::unordered_map<std::string, extensions_t>
     enabled_extensions_t::StrToExt = {
-#define CG_FSIM_RISCV_EXTENTION_ENUM_ITEM(enumerator, str, num)                \
+#define CG_FSIM_RISCV_EXTENSION_ENUM_ITEM(enumerator, str, num)                \
   {#str, extensions_t::enumerator},
-        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENTION_ENUM_ITEM)
-#undef CG_FSIM_RISCV_EXTENTION_ENUM_ITEM
+        CG_FSIM_RISCV_ALL_EXTENSIONS(CG_FSIM_RISCV_EXTENSION_ENUM_ITEM)
+#undef CG_FSIM_RISCV_EXTENSION_ENUM_ITEM
 };
 
 } // namespace cg::riscv

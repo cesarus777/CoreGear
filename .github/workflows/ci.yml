@@ -7,6 +7,17 @@ on:
     branches: [ main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      # Uses the official action to check out the code
+      uses: actions/checkout@v6
+
+    - name: Setup and run lint
+      run: |
+        ./orch.sh uv --sync
+        ./orch.sh lint
   gcc:
     runs-on: ubuntu-latest
     container:
@@ -15,7 +26,7 @@ jobs:
     steps:
     - name: Checkout repository
       # Uses the official action to check out the code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install riscv toolchain
       run: apt install -y gcc-riscv64-unknown-elf
@@ -34,7 +45,7 @@ jobs:
     steps:
     - name: Checkout repository
       # Uses the official action to check out the code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Install riscv toolchain
       run: apt install -y gcc-riscv64-unknown-elf
