@@ -1,0 +1,12 @@
+{
+    "version": "0.5",
+    "requires": [
+        "gtest/1.17.0#43201cc96e5d35332662ce8890cceb27%1786446850.202",
+        "elfio/3.12#b7155911b3ae58340e630c5218ad4f10%1694995103.565"
+    ],
+    "build_requires": [
+        "cmake/4.3.4#platform"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}

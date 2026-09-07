@@ -9,3 +9,5 @@ os=Linux
 [conf]
 tools.build:compiler_executables={"c": "clang", "cpp": "clang++"}
 
+[platform_tool_requires]
+cmake/4.3.4
