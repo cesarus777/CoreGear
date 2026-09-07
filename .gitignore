@@ -8,3 +8,5 @@ CMakeUserPresets.json
 .env
 .env.*
 !.env.example
+.agents/
+.codex/

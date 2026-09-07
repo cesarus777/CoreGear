@@ -29,3 +29,4 @@ nix run .#check-clang
 
 `flake.lock`, `uv.lock`, and `conan.lock` are reproducibility inputs. Update
 each lockfile only when intentionally changing its corresponding dependencies.
+See [AGENTS.md](AGENTS.md) for the full workflow.
