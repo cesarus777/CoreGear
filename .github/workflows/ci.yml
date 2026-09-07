@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -14,45 +17,38 @@ jobs:
       # Uses the official action to check out the code
       uses: actions/checkout@v6
 
-    - name: Setup and run lint
+    - name: Install Nix
+      uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6
+
+    - name: Validate flake and run lint
       run: |
-        ./orch.sh uv --sync
-        ./orch.sh lint
+        nix flake check --no-build
+        nix run .#lint
   gcc:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/mattkretz/cplusplus-ci/gcc15
 
     steps:
     - name: Checkout repository
       # Uses the official action to check out the code
       uses: actions/checkout@v6
 
-    - name: Install riscv toolchain
-      run: apt install -y gcc-riscv64-unknown-elf
-
-    - name: Set PATH for cmake-latest
-      run: echo /opt/cmake-latest/bin >> $GITHUB_PATH
+    - name: Install Nix
+      uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6
 
     - name: Run everything
       # Configures, builds and tests the project
-      run: ./orch.sh everything --preset base_with_tests
+      run: nix run .#check
   clang:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/mattkretz/cplusplus-ci/clang21
 
     steps:
     - name: Checkout repository
       # Uses the official action to check out the code
       uses: actions/checkout@v6
 
-    - name: Install riscv toolchain
-      run: apt install -y gcc-riscv64-unknown-elf
-
-    - name: Set PATH for cmake-latest
-      run: echo /opt/cmake-latest/bin >> $GITHUB_PATH
+    - name: Install Nix
+      uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6
 
     - name: Run everything
       # Configures, builds and tests the project
-      run: ./orch.sh everything --preset base_clang_with_tests --clang-libcxx-wa --profile clang.txt
+      run: nix run .#check-clang

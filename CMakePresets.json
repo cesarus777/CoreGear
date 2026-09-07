@@ -22,7 +22,9 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++"
+        "CG_CXX_STDLIB_MODULES_JSON": "$env{CG_CXX_STDLIB_MODULES_JSON}",
+        "CG_CXX_STDLIB_INCLUDE_DIR": "$env{CG_CXX_STDLIB_INCLUDE_DIR}",
+        "CG_CXX_STDLIB_LIBRARY_DIR": "$env{CG_CXX_STDLIB_LIBRARY_DIR}"
       }
     },
     {

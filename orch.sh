@@ -1,23 +1,51 @@
 #!/usr/bin/env bash
 
+# Project workflow entry point. Typical invocations are:
+#   ./orch.sh lint [--inplace]
+#   ./orch.sh everything --preset base_with_tests --profile gcc.txt
+#   ./orch.sh config|build|test [subcommand options]
+# `everything` synchronizes development tools, installs Conan dependencies,
+# configures, builds, and tests in that order.
+
 set -o errexit
 set -o pipefail
 set -o nounset
 #set -o xtrace
 
-this_script_path="$0"
+readonly this_script_path="$0"
+
+# Echo a shell-escaped representation for diagnostics, then execute the
+# argument vector directly. This deliberately avoids constructing `sh -c`
+# command strings from user-supplied options.
+run() {
+	printf '+ '
+	printf '%q ' "$@"
+	printf '\n'
+	"$@"
+}
+
+# Build directories and Conan profiles become tool arguments and determine
+# where generated files are written. Keep them relative to this checkout and
+# reject traversal or multi-line values before invoking external tools.
+require_safe_path() {
+	case "$1" in
+	"" | /* | *".."* | *$'\n'* | *$'\r'*)
+		echo "Unsafe path '$1'" >&2
+		exit 2
+		;;
+	esac
+}
 
 usage() {
 	echo "[USAGE]: ${this_script_path} {everything|uv|config|build|test} [subcommand specific options]"
 }
 
 run_uv() {
-	exit_at_end=""
-	build_type="Release"
-	build_dir="build/$build_type"
-	conan_profile="conan/gcc.txt"
-	uv_command=""
-	uv_args=""
+	local exit_at_end=""
+	local build_type="Release"
+	local build_dir="build/$build_type"
+	local conan_profile="conan/gcc.txt"
+	local uv_command=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -38,7 +66,7 @@ run_uv() {
 				echo "You can pass only one uv wrapper command at the same time" >&2
 				exit 2
 			fi
-			uv_command="run conan install"
+			uv_command="conan-install"
 			shift
 			;;
 		"--sync" | "-s")
@@ -57,27 +85,38 @@ run_uv() {
 		esac
 	done
 
-	if [ "${uv_command}" == "run conan install" ]; then
-		uv_args=". -of ${build_dir} -pr:a ${conan_profile} --build=missing ${uv_args}"
-	elif [ "${uv_command}" == "sync" ] && [[ -n "${uv_args}" ]]; then
-		echo "uv sync command requires no args" >&2
-		exit 2
-	fi
+	# The same profile applies to Conan's host and build contexts (`-pr:a`).
+	# This lets its platform tool requirements, including Nix-provided CMake,
+	# replace matching Conan tool packages in either context.
+	require_safe_path "${build_dir}"
+	require_safe_path "${conan_profile}"
 
 	if ! command -v uv >/dev/null 2>&1; then
-		curl -LsSf https://astral.sh/uv/install.sh | sh
-		if [[ ":$PATH:" != *:"$HOME"/.local/bin:* ]]; then
-			PATH="${PATH}:$HOME/.local/bin"
-		fi
+		echo "uv is required; install it using your trusted system package workflow." >&2
+		exit 127
 	fi
 
-	sh -x -c "uv $uv_command $uv_args"
+	case "${uv_command}" in
+	"conan-install")
+		# Conan writes a CMake toolchain into the requested build directory.
+		# Do not let it generate a user preset: this repository owns its committed
+		# presets and passes the generated toolchain explicitly during configure.
+		run uv run conan install . -of "${build_dir}" -pr:a "${conan_profile}" --build=missing -c tools.cmake.cmaketoolchain:user_presets=
+		;;
+	"sync")
+		run uv sync --locked
+		;;
+	"")
+		echo "A uv wrapper command is required" >&2
+		exit 2
+		;;
+	esac
 	if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_lint() {
-	exit_at_end=""
-	inplace=""
+	local exit_at_end=""
+	local inplace=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -97,43 +136,56 @@ run_lint() {
 		esac
 	done
 
-	clang_format_options="${inplace:---Werror -n}"
-	sh -x -c "find coregear/ -iname *.[chm]pp | xargs uv run clang-format ${clang_format_options}"
+	# NUL-delimited discovery preserves arbitrary filenames and avoids invoking
+	# a formatter with no inputs. C++ source is intentionally limited to coregear.
+	mapfile -d '' -t cpp_files < <(find coregear -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.mpp' \) -print0)
+	if ((${#cpp_files[@]})); then
+		if [[ -n "${inplace}" ]]; then
+			run uv run clang-format -i "${cpp_files[@]}"
+		else
+			run uv run clang-format --Werror -n "${cpp_files[@]}"
+		fi
+	fi
 
-	cmake_format_options="${inplace:---check}"
-	sh -x -c "find coregear/ -iname CMakeLists.txt | xargs uv run cmake-format ${cmake_format_options}" >/dev/null
+	# CMake files can exist at any repository level. Exclude generated and
+	# metadata directories so lint results depend only on tracked source files.
+	mapfile -d '' -t cmake_files < <(find . \( -name .cache -o -name build -o -name .git \) -type d -prune -o -type f -name CMakeLists.txt -print0)
+	if [[ -n "${inplace}" ]]; then
+		run uv run cmake-format -i "${cmake_files[@]}"
+		run uv run cmake-lint --suppress-decorations "${cmake_files[@]}"
+	else
+		run uv run cmake-format --check "${cmake_files[@]}"
+		run uv run cmake-lint "${cmake_files[@]}"
+	fi
 
-	cmake_lint_options="${inplace:+--suppress-decorations}"
-	sh -x -c "find coregear/ -iname CMakeLists.txt | xargs uv run cmake-lint ${cmake_lint_options}"
+	if [[ -n "${inplace}" ]]; then
+		run uv run shfmt -w "${this_script_path}"
+	else
+		run uv run shfmt -d "${this_script_path}"
+	fi
 
-	shfmt_options="${inplace:+-w}"
-	shfmt_options="${shfmt_options:--d}"
-	sh -x -c "uv run shfmt ${shfmt_options} ${this_script_path}"
+	run uv run shellcheck "${this_script_path}"
 
-	sh -x -c "uv run shellcheck ${this_script_path}"
-
-	typos_options="${inplace:+-w}"
-	sh -x -c "uv run typos ${typos_options}"
+	if [[ -n "${inplace}" ]]; then
+		run uv run typos -w
+	else
+		run uv run typos
+	fi
 
 	if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_configure() {
-	exit_at_end=""
-	preset="base"
-	build_type="Release"
-	build_dir="build/$build_type"
-	clang_stdlib_modules_wa="OFF"
+	local exit_at_end=""
+	local preset="base"
+	local build_type="Release"
+	local build_dir="build/$build_type"
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
 		"__exit_at_end")
 			exit_at_end="yes"
 			shift
-			;;
-		"--clang-libcxx-wa")
-			clang_stdlib_modules_wa="ON"
-			shift 1
 			;;
 		"--preset" | "-p")
 			preset="$2"
@@ -155,15 +207,17 @@ run_configure() {
 		esac
 	done
 
-	sh -x -c "cmake -S . -B ${build_dir} -DCMAKE_BUILD_TYPE=${build_type} --preset ${preset} -DCLANG_STDLIB_MODULES_JSON_WA=${clang_stdlib_modules_wa} --toolchain=${build_dir}/conan_toolchain.cmake"
+	# `run_uv --conan-install` must run first: it generates this toolchain file.
+	require_safe_path "${build_dir}"
+	run cmake -S . -B "${build_dir}" "-DCMAKE_BUILD_TYPE=${build_type}" --preset "${preset}" "--toolchain=${build_dir}/conan_toolchain.cmake"
 	if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_build() {
-	exit_at_end=""
-	target="all"
-	build_type="Release"
-	build_dir="build/$build_type"
+	local exit_at_end=""
+	local target="all"
+	local build_type="Release"
+	local build_dir="build/$build_type"
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -187,15 +241,16 @@ run_build() {
 		esac
 	done
 
-	sh -x -c "cmake --build $build_dir --target $target"
+	require_safe_path "${build_dir}"
+	run cmake --build "${build_dir}" --target "${target}"
 	if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_test() {
-	exit_at_end=""
-	build_type="Release"
-	build_dir="build/$build_type"
-	lint=""
+	local exit_at_end=""
+	local build_type="Release"
+	local build_dir="build/$build_type"
+	local lint=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -219,42 +274,38 @@ run_test() {
 		esac
 	done
 
-	sh -x -c "ctest --test-dir $build_dir"
+	require_safe_path "${build_dir}"
+	run ctest --test-dir "${build_dir}"
 	if [ "$lint" = "yes" ]; then run_lint; fi
 	if [ "$exit_at_end" = "yes" ]; then exit 0; fi
 }
 
 run_everything() {
-	preset="base"
-	profile="gcc.txt"
-	build_type="Release"
-	build_dir="build/$build_type"
-	clang_libcxx_wa=""
-	lint=""
+	local everything_preset="base"
+	local everything_profile="gcc.txt"
+	local everything_build_type="Release"
+	local everything_build_dir="build/$everything_build_type"
+	local everything_lint=""
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		"--clang-libcxx-wa")
-			clang_libcxx_wa="--clang-libcxx-wa"
-			shift 1
-			;;
 		"--preset" | "-p")
-			preset="$2"
+			everything_preset="$2"
 			shift 2
 			;;
 		"--profile" | "-pr")
-			profile="$2"
+			everything_profile="$2"
 			shift 2
 			;;
 		"--build-type")
-			build_type="$2"
+			everything_build_type="$2"
 			shift 2
 			;;
 		"--build-dir" | "-b")
-			build_dir="$2"
+			everything_build_dir="$2"
 			shift 2
 			;;
 		"--lint" | "-l")
-			lint="--lint"
+			everything_lint="--lint"
 			shift
 			;;
 		*)
@@ -265,13 +316,13 @@ run_everything() {
 		esac
 	done
 
-	if ! command -v conan >/dev/null 2>&1; then
-		run_uv --sync
-	fi
-	run_uv --conan-install --build-dir "${build_dir}" --profile "conan/${profile}"
-	run_configure --preset "$preset" --build-type "${build_type}" --build-dir "${build_dir}" $clang_libcxx_wa
-	run_build --build-dir "${build_dir}"
-	run_test --build-dir "${build_dir}" ${lint}
+	# Keep the tool environment and Conan graph reproducible before consuming
+	# either. Each stage receives the same build directory selected by the user.
+	run_uv --sync
+	run_uv --conan-install --build-dir "${everything_build_dir}" --profile "conan/${everything_profile}"
+	run_configure --preset "${everything_preset}" --build-type "${everything_build_type}" --build-dir "${everything_build_dir}"
+	run_build --build-dir "${everything_build_dir}"
+	run_test --build-dir "${everything_build_dir}" ${everything_lint}
 
 	exit 0
 }
@@ -282,7 +333,9 @@ main() {
 		exit 2
 	fi
 
-	subcommand="$1"
+	# The internal sentinel makes individual subcommands exit after completion;
+	# `everything` instead composes their functions in one shell process.
+	local subcommand="$1"
 	shift
 	case "$subcommand" in
 	"uv")
