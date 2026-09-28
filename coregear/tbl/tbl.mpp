@@ -1,0 +1,133 @@
+export module coregear.tbl;
+
+export import std;
+
+export namespace cg::tbl {
+
+template <typename T> struct field {
+  T value{};
+  bool is_set = false;
+
+  constexpr field() = default;
+  constexpr field(T initial) : value(initial), is_set(true) {}
+};
+
+template <std::size_t N> struct bits {
+  static_assert(N > 0 && N <= 64);
+  static constexpr std::size_t width = N;
+  std::uint64_t value = 0;
+
+  constexpr bits() = default;
+  constexpr bits(std::uint64_t initial) : value(initial & mask()) {}
+
+  constexpr auto operator<=>(const bits &) const = default;
+
+  static consteval std::uint64_t mask() {
+    if constexpr (N == 64)
+      return ~std::uint64_t{0};
+    else
+      return (std::uint64_t{1} << N) - 1;
+  }
+};
+
+struct required_tag {};
+struct final_tag {};
+struct override_tag {};
+struct append_tag {};
+struct prepend_tag {};
+
+template <std::size_t High, std::size_t Low> struct override_bits_tag {
+  static_assert(High >= Low);
+};
+
+inline constexpr required_tag required{};
+inline constexpr final_tag final{};
+inline constexpr override_tag override{};
+inline constexpr append_tag append{};
+inline constexpr prepend_tag prepend{};
+template <std::size_t High, std::size_t Low>
+inline constexpr override_bits_tag<High, Low> override_bits{};
+
+struct annotation_flags {
+  bool required = false;
+  bool final = false;
+  bool override = false;
+  bool append = false;
+  bool prepend = false;
+  bool override_bits = false;
+  std::size_t high = 0;
+  std::size_t low = 0;
+};
+
+template <typename T> struct is_field : std::false_type {};
+template <typename T> struct is_field<field<T>> : std::true_type {};
+
+template <typename T>
+concept field_type = is_field<T>::value;
+
+consteval annotation_flags field_annotations(std::meta::info member) {
+  annotation_flags result;
+  for (auto annotation : std::meta::annotations_of(member)) {
+    auto type = std::meta::remove_cv(
+        std::meta::type_of(std::meta::constant_of(annotation)));
+    if (type == ^^required_tag)
+      result.required = true;
+    else if (type == ^^final_tag)
+      result.final = true;
+    else if (type == ^^override_tag)
+      result.override = true;
+    else if (type == ^^append_tag)
+      result.append = true;
+    else if (type == ^^prepend_tag)
+      result.prepend = true;
+    else if (std::meta::has_template_arguments(type) &&
+             std::meta::template_of(type) == ^^override_bits_tag) {
+      auto arguments = std::meta::template_arguments_of(type);
+      result.override_bits = true;
+      result.high = std::meta::extract<std::size_t>(arguments[0]);
+      result.low = std::meta::extract<std::size_t>(arguments[1]);
+    } else
+      throw "unsupported field annotation";
+  }
+  if (int(result.append) + int(result.prepend) + int(result.override_bits) > 1)
+    throw "contradictory field modification annotations";
+  return result;
+}
+
+template <field_type T> struct field_descriptor {
+  std::string_view name;
+  std::meta::info type;
+  T initial;
+  annotation_flags annotations;
+  std::meta::info source_member;
+  std::meta::info source_record;
+};
+
+template <typename Record, std::meta::info Member>
+consteval auto describe_field() {
+  using member_type = decltype(Record{}.[:Member:]);
+  static_assert(field_type<member_type>,
+                "record data members must have tbl::field<T> type");
+  return field_descriptor<member_type>{
+      std::meta::identifier_of(Member),
+      std::meta::type_of(Member),
+      Record{}.[:Member:], field_annotations(Member), Member, ^^Record};
+}
+
+template <typename Record, std::size_t... Indices>
+consteval auto direct_fields_impl(std::index_sequence<Indices...>) {
+  constexpr auto members =
+      std::define_static_array(std::meta::nonstatic_data_members_of(
+          ^^Record, std::meta::access_context::current()));
+  return std::tuple<decltype(describe_field<Record, members[Indices]>())...>{
+      describe_field<Record, members[Indices]>()...};
+}
+
+template <typename Record> consteval auto direct_fields() {
+  constexpr auto members =
+      std::define_static_array(std::meta::nonstatic_data_members_of(
+          ^^Record, std::meta::access_context::current()));
+  return direct_fields_impl<Record>(std::make_index_sequence<members.size()>{});
+}
+
+} // namespace cg::tbl
