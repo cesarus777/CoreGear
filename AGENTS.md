@@ -14,6 +14,16 @@ verify them with the narrowest relevant check.
    documentation changes; run a relevant build/test for behavior changes.
 4. Report checks that could not run and why; never claim an unrun check passed.
 
+For work spanning multiple sessions, keep the feature's design or task document
+as the handoff: record completed and active milestones, the next concrete step,
+validation commands and outcomes, and any blocker. Update it before context is
+lost or the session ends. On resumption, inspect that checkpoint and `git diff`
+before continuing; do not infer completion from a partial implementation.
+
+For multi-milestone features or changes spanning design, tests, and toolchains,
+use [the agent workflow](docs/ai-development.md). The main agent coordinates
+bounded subagents when available; simple edits stay with one agent.
+
 ## Repository commands
 
 Enter `nix develop`, then run the full local workflow:
