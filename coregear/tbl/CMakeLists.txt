@@ -10,10 +10,29 @@ if(CG_ENABLE_TESTING)
   target_link_libraries(tbl_records_test tbl)
   add_test(NAME tbl_records COMMAND tbl_records_test)
 
+  add_executable(tbl_expressions_test expressions.test.cpp)
+  target_link_libraries(tbl_expressions_test tbl)
+  add_test(NAME tbl_expressions COMMAND tbl_expressions_test)
+
   set(TEST_OBJECT_DIR "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/tbl_test.dir")
   set(TEST_MAPPER "${TEST_OBJECT_DIR}/tbl.test.cpp.o.modmap")
-  foreach(case IN ITEMS unsupported_annotation contradictory_annotations
-                        invalid_member_type incompatible_inheritance)
+  foreach(
+    case IN
+    ITEMS unsupported_annotation
+          contradictory_annotations
+          invalid_member_type
+          incompatible_inheritance
+          expression_cycle
+          unresolved_reference
+          expression_type_mismatch
+          record_expression_cycle
+          unselected_expression_cycle
+          invalid_record_reference
+          unresolved_record_field
+          record_reference_type_mismatch
+          negative_shift
+          invalid_list_index
+          invalid_bit_slice)
     add_test(
       NAME tbl_${case}
       COMMAND

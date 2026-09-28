@@ -4,12 +4,169 @@ export import std;
 
 export namespace cg::tbl {
 
+template <std::size_t N> struct fixed_string {
+  char characters[N]{};
+
+  consteval fixed_string(const char (&text)[N]) {
+    for (std::size_t index = 0; index < N; ++index)
+      characters[index] = text[index];
+  }
+
+  constexpr operator std::string_view() const { return {characters, N - 1}; }
+};
+
+template <typename T>
+concept expression_node = requires { typename T::value_type; };
+
+template <typename T, fixed_string Name> struct field_reference {
+  using value_type = T;
+  static constexpr auto name = Name;
+};
+
+template <typename T, fixed_string Name>
+inline constexpr field_reference<T, Name> ref{};
+
+template <typename T, typename Target, fixed_string Name>
+struct record_reference {
+  using value_type = T;
+};
+
+template <typename T, typename Target, fixed_string Name>
+inline constexpr record_reference<T, Target, Name> record_ref{};
+
+template <typename Record, fixed_string Name> struct dependency {};
+
+template <typename T> struct literal_expression {
+  using value_type = T;
+  T value;
+};
+
+template <typename T> constexpr auto literal(T value) {
+  return literal_expression<T>{value};
+}
+
+template <expression_node Left, expression_node Right> struct add_expression {
+  using value_type =
+      decltype(typename Left::value_type{} + typename Right::value_type{});
+  Left left;
+  Right right;
+};
+
+template <expression_node Left, expression_node Right>
+constexpr auto operator+(Left left, Right right) {
+  return add_expression<Left, Right>{left, right};
+}
+
+template <typename Operation, expression_node Left, expression_node Right>
+struct binary_expression {
+  using value_type = std::invoke_result_t<Operation, typename Left::value_type,
+                                          typename Right::value_type>;
+  Left left;
+  Right right;
+};
+
+template <expression_node Left, expression_node Right>
+constexpr auto operator-(Left left, Right right) {
+  return binary_expression<std::minus<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto equal(Left left, Right right) {
+  return binary_expression<std::equal_to<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto less(Left left, Right right) {
+  return binary_expression<std::less<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto operator*(Left left, Right right) {
+  return binary_expression<std::multiplies<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto operator/(Left left, Right right) {
+  return binary_expression<std::divides<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto operator%(Left left, Right right) {
+  return binary_expression<std::modulus<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto not_equal(Left left, Right right) {
+  return binary_expression<std::not_equal_to<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto less_equal(Left left, Right right) {
+  return binary_expression<std::less_equal<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto greater(Left left, Right right) {
+  return binary_expression<std::greater<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto greater_equal(Left left, Right right) {
+  return binary_expression<std::greater_equal<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto bit_or(Left left, Right right) {
+  return binary_expression<std::bit_or<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto bit_xor(Left left, Right right) {
+  return binary_expression<std::bit_xor<>, Left, Right>{left, right};
+}
+
+template <typename Operation, expression_node Operand> struct unary_expression {
+  using value_type =
+      std::invoke_result_t<Operation, typename Operand::value_type>;
+  Operand operand;
+};
+
+template <expression_node Operand> constexpr auto operator-(Operand operand) {
+  return unary_expression<std::negate<>, Operand>{operand};
+}
+
+template <expression_node Operand> constexpr auto bit_not(Operand operand) {
+  return unary_expression<std::bit_not<>, Operand>{operand};
+}
+
+template <expression_node Condition, expression_node Yes, expression_node No>
+  requires std::same_as<typename Condition::value_type, bool> &&
+           std::same_as<typename Yes::value_type, typename No::value_type>
+struct select_expression {
+  using value_type = typename Yes::value_type;
+  Condition condition;
+  Yes yes;
+  No no;
+};
+
+template <expression_node Condition, expression_node Yes, expression_node No>
+constexpr auto select(Condition condition, Yes yes, No no) {
+  return select_expression<Condition, Yes, No>{condition, yes, no};
+}
+
 template <typename T> struct field {
   T value{};
   bool is_set = false;
+  std::meta::info expression{};
+  bool has_expression = false;
 
   constexpr field() = default;
   constexpr field(T initial) : value(initial), is_set(true) {}
+  template <expression_node Expression>
+    requires std::same_as<T, typename Expression::value_type>
+  consteval field(Expression initial)
+      : expression(std::meta::reflect_constant(initial)), has_expression(true) {
+  }
 };
 
 template <std::size_t N> struct bits {
@@ -29,6 +186,145 @@ template <std::size_t N> struct bits {
       return (std::uint64_t{1} << N) - 1;
   }
 };
+
+template <std::size_t N>
+constexpr bits<N> operator&(bits<N> left, bits<N> right) {
+  return bits<N>{left.value & right.value};
+}
+
+template <std::size_t N>
+constexpr bits<N> operator|(bits<N> left, bits<N> right) {
+  return bits<N>{left.value | right.value};
+}
+
+template <std::size_t N>
+constexpr bits<N> operator^(bits<N> left, bits<N> right) {
+  return bits<N>{left.value ^ right.value};
+}
+
+template <std::size_t N> constexpr bits<N> operator~(bits<N> operand) {
+  return bits<N>{~operand.value};
+}
+
+struct shift_left_operation {
+  template <std::size_t N, std::integral Count>
+  constexpr bits<N> operator()(bits<N> operand, Count count) const {
+    if (count < 0)
+      throw "negative bit shift count";
+    if (static_cast<std::uintmax_t>(count) >= N)
+      return bits<N>{};
+    return bits<N>{operand.value << count};
+  }
+};
+
+struct shift_right_operation {
+  template <std::size_t N, std::integral Count>
+  constexpr bits<N> operator()(bits<N> operand, Count count) const {
+    if (count < 0)
+      throw "negative bit shift count";
+    if (static_cast<std::uintmax_t>(count) >= N)
+      return bits<N>{};
+    return bits<N>{operand.value >> count};
+  }
+};
+
+template <expression_node Left, expression_node Right>
+constexpr auto shift_left(Left left, Right right) {
+  return binary_expression<shift_left_operation, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto shift_right(Left left, Right right) {
+  return binary_expression<shift_right_operation, Left, Right>{left, right};
+}
+
+template <std::size_t High, std::size_t Low> struct slice_operation {
+  template <std::size_t N>
+  constexpr bits<High - Low + 1> operator()(bits<N> operand) const {
+    static_assert(High >= Low && High < N, "bit slice out of range");
+    return bits<High - Low + 1>{operand.value >> Low};
+  }
+};
+
+template <std::size_t High, std::size_t Low, expression_node Operand>
+constexpr auto slice_bits(Operand operand) {
+  return unary_expression<slice_operation<High, Low>, Operand>{operand};
+}
+
+template <typename T> struct is_bits : std::false_type {};
+template <std::size_t N> struct is_bits<bits<N>> : std::true_type {};
+
+template <expression_node Left, expression_node Right>
+  requires is_bits<typename Left::value_type>::value &&
+           is_bits<typename Right::value_type>::value
+struct bits_concat_expression {
+  static constexpr std::size_t width =
+      Left::value_type::width + Right::value_type::width;
+  static_assert(width <= 64);
+  using value_type = bits<width>;
+  Left left;
+  Right right;
+};
+
+template <expression_node Left, expression_node Right>
+constexpr auto bit_and(Left left, Right right) {
+  return binary_expression<std::bit_and<>, Left, Right>{left, right};
+}
+
+template <expression_node Left, expression_node Right>
+constexpr auto concat_bits(Left left, Right right) {
+  return bits_concat_expression<Left, Right>{left, right};
+}
+
+template <typename T> struct array_info;
+template <typename T, std::size_t N> struct array_info<std::array<T, N>> {
+  using element_type = T;
+  static constexpr std::size_t size = N;
+};
+
+template <expression_node Left, expression_node Right>
+  requires std::same_as<
+      typename array_info<typename Left::value_type>::element_type,
+      typename array_info<typename Right::value_type>::element_type>
+struct list_concat_expression {
+  using element_type =
+      typename array_info<typename Left::value_type>::element_type;
+  using value_type =
+      std::array<element_type,
+                 array_info<typename Left::value_type>::size +
+                     array_info<typename Right::value_type>::size>;
+  Left left;
+  Right right;
+};
+
+template <expression_node Left, expression_node Right>
+constexpr auto concat_list(Left left, Right right) {
+  return list_concat_expression<Left, Right>{left, right};
+}
+
+template <std::size_t Index> struct list_at_operation {
+  template <typename T, std::size_t N>
+  constexpr T operator()(const std::array<T, N> &values) const {
+    static_assert(Index < N, "list index out of range");
+    return values[Index];
+  }
+};
+
+struct list_size_operation {
+  template <typename T, std::size_t N>
+  constexpr std::size_t operator()(const std::array<T, N> &) const {
+    return N;
+  }
+};
+
+template <std::size_t Index, expression_node Operand>
+constexpr auto list_at(Operand operand) {
+  return unary_expression<list_at_operation<Index>, Operand>{operand};
+}
+
+template <expression_node Operand> constexpr auto list_size(Operand operand) {
+  return unary_expression<list_size_operation, Operand>{operand};
+}
 
 struct required_tag {};
 struct final_tag {};
@@ -297,6 +593,139 @@ template <typename Record> consteval auto merged_schema() {
     if (!entry.duplicate)
       result[index++] = entry;
   return result;
+}
+
+template <typename Record, fixed_string Name>
+consteval std::size_t field_index() {
+  constexpr auto schema = record_schema<Record>();
+  for (std::size_t index = 0; index < schema.size(); ++index) {
+    if (schema[index].name != std::string_view{Name} || schema[index].duplicate)
+      continue;
+    if (schema[index].conflict)
+      throw "unresolved inherited field conflict";
+    return index;
+  }
+  throw "unresolved field reference";
+}
+
+template <typename Record, fixed_string Name, typename... Stack>
+consteval auto resolved_value();
+
+template <typename Record, typename... Stack, typename T>
+consteval field<T> evaluate(literal_expression<T> expression) {
+  return field<T>{expression.value};
+}
+
+template <typename Record, typename... Stack, typename T, fixed_string Name>
+consteval field<T> evaluate(field_reference<T, Name>) {
+  auto value = resolved_value<Record, Name, Stack...>();
+  static_assert(std::same_as<decltype(value), field<T>>,
+                "field reference has the wrong value type");
+  return value;
+}
+
+template <typename Record, typename... Stack, typename T, typename Target,
+          fixed_string Name>
+consteval field<T> evaluate(record_reference<T, Target, Name>) {
+  static_assert(is_definition<Target>,
+                "record reference target must be a definition");
+  auto value = resolved_value<Target, Name, Stack...>();
+  static_assert(std::same_as<decltype(value), field<T>>,
+                "record reference has the wrong value type");
+  return value;
+}
+
+template <typename Record, typename... Stack, typename Operation,
+          expression_node Operand>
+consteval auto evaluate(unary_expression<Operation, Operand> expression) {
+  using result_type = typename unary_expression<Operation, Operand>::value_type;
+  auto operand = evaluate<Record, Stack...>(expression.operand);
+  if (!operand.is_set)
+    return field<result_type>{};
+  return field<result_type>{Operation{}(operand.value)};
+}
+
+template <typename Record, typename... Stack, expression_node Left,
+          expression_node Right>
+consteval auto evaluate(add_expression<Left, Right> expression) {
+  using result_type = typename add_expression<Left, Right>::value_type;
+  auto left = evaluate<Record, Stack...>(expression.left);
+  auto right = evaluate<Record, Stack...>(expression.right);
+  if (!left.is_set || !right.is_set)
+    return field<result_type>{};
+  return field<result_type>{left.value + right.value};
+}
+
+template <typename Record, typename... Stack, typename Operation,
+          expression_node Left, expression_node Right>
+consteval auto evaluate(binary_expression<Operation, Left, Right> expression) {
+  using result_type =
+      typename binary_expression<Operation, Left, Right>::value_type;
+  auto left = evaluate<Record, Stack...>(expression.left);
+  auto right = evaluate<Record, Stack...>(expression.right);
+  if (!left.is_set || !right.is_set)
+    return field<result_type>{};
+  return field<result_type>{Operation{}(left.value, right.value)};
+}
+
+template <typename Record, typename... Stack, expression_node Condition,
+          expression_node Yes, expression_node No>
+consteval auto evaluate(select_expression<Condition, Yes, No> expression) {
+  using result_type =
+      typename select_expression<Condition, Yes, No>::value_type;
+  auto condition = evaluate<Record, Stack...>(expression.condition);
+  if (!condition.is_set)
+    return field<result_type>{};
+  if (condition.value)
+    return evaluate<Record, Stack...>(expression.yes);
+  return evaluate<Record, Stack...>(expression.no);
+}
+
+template <typename Record, typename... Stack, expression_node Left,
+          expression_node Right>
+consteval auto evaluate(bits_concat_expression<Left, Right> expression) {
+  using result_type = typename bits_concat_expression<Left, Right>::value_type;
+  auto left = evaluate<Record, Stack...>(expression.left);
+  auto right = evaluate<Record, Stack...>(expression.right);
+  if (!left.is_set || !right.is_set)
+    return field<result_type>{};
+  return field<result_type>{result_type{
+      (left.value.value << Right::value_type::width) | right.value.value}};
+}
+
+template <typename Record, typename... Stack, expression_node Left,
+          expression_node Right>
+consteval auto evaluate(list_concat_expression<Left, Right> expression) {
+  using result_type = typename list_concat_expression<Left, Right>::value_type;
+  auto left = evaluate<Record, Stack...>(expression.left);
+  auto right = evaluate<Record, Stack...>(expression.right);
+  if (!left.is_set || !right.is_set)
+    return field<result_type>{};
+  result_type result{};
+  std::size_t index = 0;
+  for (auto value : left.value)
+    result[index++] = value;
+  for (auto value : right.value)
+    result[index++] = value;
+  return field<result_type>{result};
+}
+
+template <typename Record, fixed_string Name, typename... Stack>
+consteval auto resolved_value() {
+  constexpr auto fields = all_fields<Record>();
+  constexpr auto index = field_index<Record, Name>();
+  constexpr auto initial = std::get<index>(fields).initial;
+  if constexpr ((std::same_as<dependency<Record, Name>, Stack> || ...)) {
+    static_assert(!(std::same_as<dependency<Record, Name>, Stack> || ...),
+                  "field expression cycle");
+    return initial;
+  } else if constexpr (initial.has_expression) {
+    constexpr auto expression = initial.expression;
+    using expression_type = [:std::meta::type_of(expression):];
+    return evaluate<Record, Stack..., dependency<Record, Name>>(
+        std::meta::extract<expression_type>(expression));
+  } else
+    return initial;
 }
 
 } // namespace cg::tbl
