@@ -1,0 +1,20 @@
+export module coregear.toolchain.reflection;
+
+import std;
+
+export namespace cg::toolchain {
+
+struct smoke_record {
+  [[= 42]] int value = 7;
+};
+
+constexpr auto smoke_member = std::meta::nonstatic_data_members_of(
+    ^^smoke_record, std::meta::access_context::current())[0];
+
+static_assert(std::meta::identifier_of(smoke_member) == "value");
+static_assert(std::meta::annotations_of(smoke_member).size() == 1);
+static_assert(std::same_as<decltype(smoke_record{}.[:smoke_member:]), int>);
+
+constexpr int smoke_value() { return smoke_record{}.[:smoke_member:]; }
+
+} // namespace cg::toolchain
