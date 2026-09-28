@@ -16,18 +16,6 @@
       }
     },
     {
-      "name": "base_clang",
-      "displayName": "Base config with clang compiler",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CG_CXX_STDLIB_MODULES_JSON": "$env{CG_CXX_STDLIB_MODULES_JSON}",
-        "CG_CXX_STDLIB_INCLUDE_DIR": "$env{CG_CXX_STDLIB_INCLUDE_DIR}",
-        "CG_CXX_STDLIB_LIBRARY_DIR": "$env{CG_CXX_STDLIB_LIBRARY_DIR}"
-      }
-    },
-    {
       "name": "with_tests",
       "hidden": true,
       "cacheVariables": {
@@ -39,14 +27,6 @@
       "displayName": "Base config with tests",
       "inherits": [
         "base",
-        "with_tests"
-      ]
-    },
-    {
-      "name": "base_clang_with_tests",
-      "displayName": "Base config with clang compiler and tests",
-      "inherits": [
-        "base_clang",
         "with_tests"
       ]
     }
