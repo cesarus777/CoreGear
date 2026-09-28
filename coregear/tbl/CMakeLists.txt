@@ -6,10 +6,14 @@ if(CG_ENABLE_TESTING)
   target_link_libraries(tbl_test tbl)
   add_test(NAME tbl_fields COMMAND tbl_test)
 
+  add_executable(tbl_records_test records.test.cpp)
+  target_link_libraries(tbl_records_test tbl)
+  add_test(NAME tbl_records COMMAND tbl_records_test)
+
   set(TEST_OBJECT_DIR "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/tbl_test.dir")
   set(TEST_MAPPER "${TEST_OBJECT_DIR}/tbl.test.cpp.o.modmap")
   foreach(case IN ITEMS unsupported_annotation contradictory_annotations
-                        invalid_member_type)
+                        invalid_member_type incompatible_inheritance)
     add_test(
       NAME tbl_${case}
       COMMAND

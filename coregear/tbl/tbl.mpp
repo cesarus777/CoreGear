@@ -130,4 +130,173 @@ template <typename Record> consteval auto direct_fields() {
   return direct_fields_impl<Record>(std::make_index_sequence<members.size()>{});
 }
 
+struct record_marker {};
+struct definition_marker {};
+
+template <typename Record>
+inline constexpr bool is_definition =
+    std::is_base_of_v<definition_marker, Record>;
+
+template <typename... Bases>
+struct record_class : virtual record_marker, Bases... {};
+
+template <typename... Bases>
+struct definition : virtual record_marker,
+                    virtual definition_marker,
+                    Bases... {};
+
+template <typename Record> consteval auto all_fields();
+template <typename Record> consteval auto record_ancestry();
+
+template <std::meta::info Base> consteval auto fields_from_base() {
+  using base_type = [:std::meta::type_of(Base):];
+  if constexpr (std::same_as<base_type, record_marker> ||
+                std::same_as<base_type, definition_marker>)
+    return std::tuple{};
+  else
+    return all_fields<base_type>();
+}
+
+template <std::meta::info Base> consteval auto ancestry_from_base() {
+  using base_type = [:std::meta::type_of(Base):];
+  if constexpr (std::same_as<base_type, record_marker> ||
+                std::same_as<base_type, definition_marker>)
+    return std::tuple{};
+  else
+    return record_ancestry<base_type>();
+}
+
+template <typename Record, std::size_t... Indices>
+consteval auto inherited_ancestry_impl(std::index_sequence<Indices...>) {
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  return std::tuple_cat(ancestry_from_base<bases[Indices]>()...);
+}
+
+template <typename Record> consteval auto record_ancestry() {
+  static_assert(std::is_base_of_v<record_marker, Record>);
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  return std::tuple_cat(
+      inherited_ancestry_impl<Record>(std::make_index_sequence<bases.size()>{}),
+      std::tuple{^^Record});
+}
+
+template <typename Record, std::size_t... Indices>
+consteval auto inherited_fields_impl(std::index_sequence<Indices...>) {
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  return std::tuple_cat(fields_from_base<bases[Indices]>()...);
+}
+
+template <typename Record> consteval auto all_fields() {
+  static_assert(std::is_base_of_v<record_marker, Record>,
+                "record must derive from tbl::record_class or tbl::definition");
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  return std::tuple_cat(
+      inherited_fields_impl<Record>(std::make_index_sequence<bases.size()>{}),
+      direct_fields<Record>());
+}
+
+struct schema_entry {
+  std::string_view name;
+  std::meta::info type;
+  std::meta::info source_member;
+  std::meta::info effective_member;
+  annotation_flags annotations;
+  bool duplicate = false;
+  bool conflict = false;
+};
+
+template <typename Record> consteval auto record_schema();
+
+template <std::meta::info Base, std::size_t N>
+consteval void copy_base_schema(std::array<schema_entry, N> &entries,
+                                std::size_t &offset) {
+  using base_type = [:std::meta::type_of(Base):];
+  if constexpr (!std::same_as<base_type, record_marker> &&
+                !std::same_as<base_type, definition_marker>) {
+    constexpr auto base_schema = record_schema<base_type>();
+    for (const auto &entry : base_schema)
+      entries[offset++] = entry;
+  }
+}
+
+template <typename Record, std::size_t N, std::size_t... Indices>
+consteval std::size_t
+copy_inherited_schema(std::array<schema_entry, N> &entries,
+                      std::index_sequence<Indices...>) {
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  std::size_t offset = 0;
+  (copy_base_schema<bases[Indices]>(entries, offset), ...);
+  return offset;
+}
+
+template <typename Tuple, std::size_t... Indices>
+consteval auto schema_entries_impl(const Tuple &fields,
+                                   std::index_sequence<Indices...>) {
+  std::array<schema_entry, sizeof...(Indices)> entries{schema_entry{
+      std::get<Indices>(fields).name, std::get<Indices>(fields).type,
+      std::get<Indices>(fields).source_member,
+      std::get<Indices>(fields).source_member,
+      std::get<Indices>(fields).annotations}...};
+  return entries;
+}
+
+template <typename Record> consteval auto record_schema() {
+  constexpr auto fields = all_fields<Record>();
+  constexpr auto bases = std::define_static_array(
+      std::meta::bases_of(^^Record, std::meta::access_context::current()));
+  auto entries = schema_entries_impl(
+      fields, std::make_index_sequence<std::tuple_size_v<decltype(fields)>>{});
+  const auto inherited = copy_inherited_schema<Record>(
+      entries, std::make_index_sequence<bases.size()>{});
+
+  if constexpr (std::tuple_size_v<decltype(fields)> == 0)
+    return entries;
+  else {
+    for (std::size_t i = 0; i < inherited; ++i) {
+      if (entries[i].duplicate)
+        continue;
+      for (std::size_t j = 0; j < i; ++j) {
+        if (entries[j].duplicate)
+          continue;
+        if (entries[i].name != entries[j].name)
+          continue;
+        if (entries[i].type != entries[j].type)
+          throw "incompatible inherited field types";
+        if (entries[i].effective_member == entries[j].effective_member)
+          entries[i].duplicate = true;
+        else {
+          entries[i].conflict = true;
+          entries[j].conflict = true;
+        }
+      }
+    }
+
+    return entries;
+  }
+}
+
+template <typename Record> consteval std::size_t merged_field_count() {
+  constexpr auto schema = record_schema<Record>();
+  std::size_t count = 0;
+  for (const auto &entry : schema)
+    if (!entry.duplicate)
+      ++count;
+  return count;
+}
+
+template <typename Record> consteval auto merged_schema() {
+  constexpr auto schema = record_schema<Record>();
+  std::array<schema_entry, merged_field_count<Record>()> result{};
+  std::size_t index = 0;
+  for (const auto &entry : schema)
+    if (!entry.duplicate)
+      result[index++] = entry;
+  return result;
+}
+
 } // namespace cg::tbl
