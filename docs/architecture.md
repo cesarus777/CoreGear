@@ -11,12 +11,17 @@ already exists.
 The current source tree establishes these module families. Component paths are
 relative to `coregear/`.
 
+The compile-time record system and planned machine-independent instruction
+model are specified in [machine-description.md](machine-description.md).
+
 ### `coregear`
 
 | Component | Module | Responsibility |
 | --- | --- | --- |
 | `common` | `coregear.common` | Shared basic types, bit utilities, and project exceptions. |
 | `utility` | `coregear.utility` | Assertions, logging, unreachable handling, and generic C++ helpers. |
+| `tbl` | `coregear.tbl` | C++26 reflected fields, annotations, inherited record schemas, and compile-time expressions. |
+| `toolchain` | `coregear.toolchain.reflection` | Build-time smoke test for reflection, annotations, splicing, modules, and `import std`. |
 
 ### `coregear.fsim`
 
