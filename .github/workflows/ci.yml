@@ -38,17 +38,3 @@ jobs:
     - name: Run everything
       # Configures, builds and tests the project
       run: nix run .#check
-  clang:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      # Uses the official action to check out the code
-      uses: actions/checkout@v6
-
-    - name: Install Nix
-      uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6
-
-    - name: Run everything
-      # Configures, builds and tests the project
-      run: nix run .#check-clang

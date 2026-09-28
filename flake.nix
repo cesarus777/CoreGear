@@ -7,18 +7,23 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      llvm = pkgs.llvmPackages_21;
       riscvGcc = pkgs.pkgsCross.riscv64-embedded.stdenv.cc;
+      dependencies = [
+        pkgs.elfio
+        pkgs.gtest.dev
+      ];
+      dependencyPrefixPath = pkgs.lib.concatStringsSep ":" (map toString dependencies);
       commonPackages = [
         pkgs.cmake
-        pkgs.gcc15
-        llvm.clang
-        llvm.clang-tools
-        llvm.libcxx
+        pkgs.cmake-format
+        pkgs.gcc16
+        pkgs.llvmPackages_21.clang-tools
         pkgs.ninja
         riscvGcc
-        pkgs.uv
-      ];
+        pkgs.shellcheck
+        pkgs.shfmt
+        pkgs.typos
+      ] ++ dependencies;
       mkApp = name: command: pkgs.writeShellApplication {
         inherit name;
         runtimeInputs = commonPackages;
@@ -27,7 +32,7 @@
             echo "Run this command from the CoreGear repository root." >&2
             exit 2
           fi
-          export CONAN_HOME="$PWD/.cache/conan"
+          export CMAKE_PREFIX_PATH="${dependencyPrefixPath}''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
           export CC=gcc
           export CXX=g++
           ${command}
@@ -40,26 +45,17 @@
         packages = commonPackages;
         CC = "gcc";
         CXX = "g++";
-        shellHook = ''
-          export CONAN_HOME="$PWD/.cache/conan"
-        '';
+        CMAKE_PREFIX_PATH = dependencyPrefixPath;
       };
 
       apps.${system} = {
         lint = {
           type = "app";
-          program = "${mkApp "coregear-lint" "./orch.sh uv --sync && ./orch.sh lint"}/bin/coregear-lint";
+          program = "${mkApp "coregear-lint" "./orch.sh lint"}/bin/coregear-lint";
         };
         check = {
           type = "app";
           program = "${mkApp "coregear-check" "./orch.sh everything --preset base_with_tests --build-dir build/nix-gcc-Release"}/bin/coregear-check";
-        };
-        check-clang = {
-          type = "app";
-          # libc++'s experimental `std` module cannot export the fortified
-          # glibc stdio overloads with Clang 21. Retain the remaining Nix
-          # hardening settings, but omit the incompatible fortify variants.
-          program = "${mkApp "coregear-check-clang" "NIX_HARDENING_ENABLE='bindnow format libcxxhardeningfast pic relro stackclashprotection stackprotector strictflexarrays1 strictoverflow zerocallusedregs' CONAN_HOME=\"$PWD/.cache/conan-clang\" CXXFLAGS='-nostdinc++ -isystem${llvm.libcxx.dev}/include/c++/v1' LDFLAGS='-L${llvm.libcxx}/lib -Wl,-rpath,${llvm.libcxx}/lib' CG_CXX_STDLIB_MODULES_JSON=${llvm.libcxx}/lib/libc++.modules.json CG_CXX_STDLIB_INCLUDE_DIR=${llvm.libcxx.dev}/include/c++/v1 CG_CXX_STDLIB_LIBRARY_DIR=${llvm.libcxx}/lib ./orch.sh everything --preset base_clang_with_tests --profile clang.txt --build-dir build/nix-clang-Release"}/bin/coregear-check-clang";
         };
       };
     };

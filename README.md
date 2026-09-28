@@ -1,8 +1,8 @@
 # CoreGear – The overall simulator platform
 
-CoreGear is a C++23 simulator platform built with CMake and Conan. Nix provides
-the pinned Linux development environment; Conan resolves C++
-dependencies; and CMake configures and builds the project.
+CoreGear is a C++23 simulator platform built with CMake. Nix pins the Linux
+toolchain, C++ dependencies, and development tools; CMake configures and builds
+the project.
 
 ## Development
 
@@ -12,7 +12,7 @@ Enter the reproducible development environment with Nix:
 nix develop
 ```
 
-Inside it, use the existing orchestration commands:
+Inside it, use the orchestration commands:
 
 ```sh
 ./orch.sh lint
@@ -24,9 +24,9 @@ For non-interactive runs, Nix provides the same workflows directly:
 ```sh
 nix run .#lint
 nix run .#check
-nix run .#check-clang
 ```
 
-`flake.lock`, `uv.lock`, and `conan.lock` are reproducibility inputs. Update
-each lockfile only when intentionally changing its corresponding dependencies.
+`flake.lock` pins the dependency set. Update it only for an intentional
+dependency change. Use a fresh build directory after switching from a Conan
+build, because CMake caches toolchain and package paths.
 See [AGENTS.md](AGENTS.md) for the full workflow.
