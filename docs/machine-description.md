@@ -183,8 +183,8 @@ positive and diagnostic-specific negative tests. All required checks passed.
 
 ## Session handoff (2026-09-28)
 
-The uncommitted tree includes the earlier GCC 16.2 toolchain switch and
-`coregear.tbl` foundations. Preserve that work. MD-04 adds the expression
+The feature branch builds on the separate Nix migration commit and contains
+MD-00 through MD-05 as separate commits. MD-04 adds the expression
 contract above, implementation, edge-case tests, and eight negative cases;
 the negative-test harness also rejects unknown diagnostic expectations.
 Independent review found no outstanding correctness issues after fixing
@@ -216,3 +216,9 @@ for MD-05.
 Next step: MD-06 scoped `let`. Database-name references remain MD-07. Workflow
 lesson: recursive parent schemas must preserve both the original field identity
 and the member supplying the effective initializer.
+
+Final branch verification: `nix run .#check` configured, built, and passed all
+35 CTest cases, including the RISC-V end-to-end test, reflection smoke test,
+and 25 `tbl` tests. `nix run .#lint` passed. The MD-02, MD-03, and MD-04
+intermediate snapshots also passed their focused builds and tests before their
+commits. No blocker remains for MD-06.
