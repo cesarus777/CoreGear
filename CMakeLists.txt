@@ -8,7 +8,7 @@ elseif(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
   set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
 endif()
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_MODULE_STD ON)
@@ -35,6 +35,14 @@ if(DEFINED CG_CXX_STDLIB_LIBRARY_DIR AND NOT "${CG_CXX_STDLIB_LIBRARY_DIR}"
 endif()
 
 project(CoreGear VERSION 0.1)
+
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_VERSION
+                                               VERSION_LESS "16.2")
+  message(
+    FATAL_ERROR "CoreGear requires GCC 16.2 or newer with C++26 reflection")
+endif()
+
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-freflection>)
 
 find_package(elfio REQUIRED)
 

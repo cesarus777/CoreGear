@@ -1,6 +1,6 @@
 # Agent guide
 
-CoreGear is a C++23 simulator platform. Nix supplies the pinned toolchain, C++
+CoreGear is a C++26 simulator platform. Nix supplies the pinned toolchain, C++
 dependencies, and development tools; CMake builds. Keep changes focused and
 verify them with the narrowest relevant check.
 

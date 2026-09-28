@@ -1,8 +1,11 @@
 # CoreGear – The overall simulator platform
 
-CoreGear is a C++23 simulator platform built with CMake. Nix pins the Linux
+CoreGear is a C++26 simulator platform built with CMake. Nix pins the Linux
 toolchain, C++ dependencies, and development tools; CMake configures and builds
 the project.
+The baseline compiler is GCC 16.2 with C++26 reflection enabled (`-freflection`).
+See [machine descriptions](docs/machine-description.md) for the planned record
+and instruction-description modules.
 
 ## Development
 
