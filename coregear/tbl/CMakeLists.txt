@@ -32,7 +32,14 @@ if(CG_ENABLE_TESTING)
           record_reference_type_mismatch
           negative_shift
           invalid_list_index
-          invalid_bit_slice)
+          invalid_bit_slice
+          unmarked_override
+          orphan_override
+          override_type_mismatch
+          override_final
+          transitive_override_final
+          conflicting_final_override
+          branch_override_conflict)
     add_test(
       NAME tbl_${case}
       COMMAND

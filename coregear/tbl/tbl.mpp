@@ -572,6 +572,28 @@ template <typename Record> consteval auto record_schema() {
       }
     }
 
+    for (std::size_t i = inherited; i < entries.size(); ++i) {
+      bool has_target = false;
+      for (std::size_t j = 0; j < inherited; ++j) {
+        if (entries[j].duplicate || entries[i].name != entries[j].name)
+          continue;
+        if (!entries[i].annotations.override)
+          throw "inherited field requires explicit override";
+        if (entries[i].type != entries[j].type)
+          throw "local override must have identical field type";
+        if (entries[j].annotations.final)
+          throw "cannot override final field";
+        if (!has_target)
+          entries[i].source_member = entries[j].source_member;
+        has_target = true;
+        entries[i].annotations.required |= entries[j].annotations.required;
+        entries[i].annotations.final |= entries[j].annotations.final;
+        entries[j].duplicate = true;
+        entries[j].conflict = false;
+      }
+      if (!has_target && entries[i].annotations.override)
+        throw "local override has no inherited field";
+    }
     return entries;
   }
 }
