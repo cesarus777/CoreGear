@@ -1,8 +1,8 @@
 # Machine descriptions and compile-time records
 
-This document is the design reference and implementation tracker for the
-`coregear.tbl` record system and the `coregear.mdesc` instruction model. Both
-are C++26 modules. A compiler with P2996 reflection, P3394 annotations,
+This document is the design reference and a historical implementation record
+for the `coregear.tbl` record system and the `coregear.mdesc` instruction model.
+Both are C++26 modules. A compiler with P2996 reflection, P3394 annotations,
 splicing, C++ modules, and `import std` is required. The selected toolchain is
 GCC 16.2 from the Nixpkgs revision in `flake.lock` (`c043004d1c6985732bcc1cbc5a9c9aecbbb4e0f0`), with `-freflection`.
 The Nix flake also supplies the C++ libraries and development tools.
@@ -130,50 +130,53 @@ consumers move to `coregear.mdesc`; they are removed once no consumers remain,
 unless an external compatibility period is separately approved. Existing
 decoded-instruction printing is preserved throughout migration.
 
-## Implementation tracker
+## Original implementation outline (historical)
 
-Tasks are completed in order. Each implementation task gets adjacent focused
-tests, with invalid cases compiled as negative CTest cases. After source,
+This outline records the original design scope, not current task status or a
+work queue. GitHub Issues hold current work items and acceptance criteria.
+The original implementation steps called for adjacent focused tests, with
+invalid cases compiled as negative CTest cases. After source,
 CMake, shell, or documentation edits, run `./orch.sh lint` inside `nix develop`.
 Behavior changes get the narrowest relevant build and test. MD-11 onward also
 runs the RISC-V end-to-end test; MD-13 runs the full pinned Nix workflow.
 
-- [x] **MD-00 — Record the design.** Define boundaries, APIs, precedence,
+- **MD-00 — Record the design.** Define boundaries, APIs, precedence,
   validation, compatibility, deferred work, and acceptance criteria here.
-- [x] **MD-01 — Pin the C++26 reflection toolchain.** Select GCC 16.2 from the
+- **MD-01 — Pin the C++26 reflection toolchain.** Select GCC 16.2 from the
   locked Nixpkgs revision, add a reflection/annotation/splicing/modules/`std`
   smoke target, set C++26 and `-freflection`, and replace incompatible CI jobs.
   Complete when the smoke target builds and runs through Nix.
-- [x] **MD-02 — Field and annotation foundations.** Add `coregear.tbl`,
+- **MD-02 — Field and annotation foundations.** Add `coregear.tbl`,
   structural unset `field<T>` and `bits<N>`, annotation tags, and reflected
   direct-member descriptors. Test valid and invalid annotation combinations.
-- [x] **MD-03 — Record classes and inheritance.** Collect ancestry and fields,
+- **MD-03 — Record classes and inheritance.** Collect ancestry and fields,
   substitute template arguments, deduplicate diamonds, retain conflicts, and
   reject type clashes. Test abstract and concrete cases.
-- [x] **MD-04 — Expressions.** Add typed structural nodes, late evaluation,
+- **MD-04 — Expressions.** Add typed structural nodes, late evaluation,
   dependency cycles, unset propagation, and bit/list operations.
-- [x] **MD-05 — Local overrides.** Enforce explicit identical-type override,
+- **MD-05 — Local overrides.** Enforce explicit identical-type override,
   final-field protection, inherited metadata, and conflict resolution.
-- [ ] **MD-06 — Scoped `let`.** Implement ordered scopes and set/append/prepend/
+- **MD-06 — Scoped `let`.** Implement ordered scopes and set/append/prepend/
   bit-slice transformations, including validation.
-- [ ] **MD-07 — Databases and queries.** Materialize immutable definitions,
+- **MD-07 — Databases and queries.** Materialize immutable definitions,
   lookup/filter/project, references, generated records, names, and ordering.
-- [ ] **MD-08 — Machine schemas.** Add `coregear.mdesc` record classes and
+- **MD-08 — Machine schemas.** Add `coregear.mdesc` record classes and
   domain validators; express a synthetic ISA as a `tbl` database.
-- [ ] **MD-09 — Decode and dispatch.** Generate descriptors, deterministic
+- **MD-09 — Decode and dispatch.** Generate descriptors, deterministic
   decode, operand extraction, ambiguity checks, and typed actions.
-- [ ] **MD-10 — Generic API migration.** Move machine-independent concepts from
+- **MD-10 — Generic API migration.** Move machine-independent concepts from
   `coregear.fsim.sim`, retaining temporary compatibility exports.
-- [ ] **MD-11 — RISC-V vertical slice.** Model R/I/S/B/U/J/system/CSR formats,
+- **MD-11 — RISC-V vertical slice.** Model R/I/S/B/U/J/system/CSR formats,
   bind representative actions, and compare new versus legacy decode.
-- [ ] **MD-12 — Full RISC-V migration.** Convert RV32I, RV32M, and Zicsr and
+- **MD-12 — Full RISC-V migration.** Convert RV32I, RV32M, and Zicsr and
   execute exclusively through generated descriptors.
-- [ ] **MD-13 — Remove legacy machinery.** Delete duplicate maps/macros and
+- **MD-13 — Remove legacy machinery.** Delete duplicate maps/macros and
   obsolete aliases, finalize docs, and run lint plus full pinned Nix workflow.
 
-MD-04 may start after MD-02 while MD-03 progresses, but integration waits for
-stable inherited descriptors. Each task is independently reviewable. Deferred
-features are `.td` parsing, a C++23 fallback, variable-length decoding,
+The original schedule allowed MD-04 to start after MD-02 while MD-03 progressed,
+but integration waited for stable inherited descriptors. Each step was
+independently reviewable. Deferred features are `.td` parsing, a C++23 fallback,
+variable-length decoding,
 assembly generation, and an embedded semantics language.
 
 MD-04 implementation and independent review are complete. Typed record
@@ -181,7 +184,7 @@ references, arithmetic and comparisons, conditional evaluation, bit/list
 operations, and record-qualified dependency cycle detection have adjacent
 positive and diagnostic-specific negative tests. All required checks passed.
 
-## Session handoff (2026-09-28)
+## Historical session record (2026-09-28)
 
 The feature branch builds on the separate Nix migration commit and contains
 MD-00 through MD-05 as separate commits. MD-04 adds the expression
@@ -213,8 +216,9 @@ build/Release` passed; `nix develop --command ctest --test-dir build/Release -R
 ./orch.sh lint` passed. No dependency locks or unrelated source files changed
 for MD-05.
 
-Next step: MD-06 scoped `let`. Database-name references remain MD-07. Workflow
-lesson: recursive parent schemas must preserve both the original field identity
+The next step recorded then was MD-06 scoped `let`. Database-name references
+remained MD-07. Workflow lesson: recursive parent schemas must preserve both
+the original field identity
 and the member supplying the effective initializer.
 
 Final branch verification: `nix run .#check` configured, built, and passed all
