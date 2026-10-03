@@ -14,11 +14,15 @@ verify them with the narrowest relevant check.
    documentation changes; run a relevant build/test for behavior changes.
 4. Report checks that could not run and why; never claim an unrun check passed.
 
-For work spanning multiple sessions, keep the feature's design or task document
-as the handoff: record completed and active milestones, the next concrete step,
-validation commands and outcomes, and any blocker. Update it before context is
-lost or the session ends. On resumption, inspect that checkpoint and `git diff`
-before continuing; do not infer completion from a partial implementation.
+## Task management
+
+- GitHub Issues are the source of truth for work items. Do not maintain
+  repository-local task files, backlogs, TODO queues, or agent execution state.
+- For issue-backed work, read the issue and relevant discussion/state through
+  GitHub MCP. Do not copy the issue body into a persistent planning file.
+- Link implementation PRs to their corresponding issue.
+- Use the [github-task-workflow skill](.agents/skills/github-task-workflow/SKILL.md)
+  when claiming, updating, executing, or completing GitHub-backed tasks.
 
 For multi-milestone features or changes spanning design, tests, and toolchains,
 use [the agent workflow](docs/ai-development.md). The main agent coordinates

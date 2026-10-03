@@ -8,11 +8,15 @@ not independent.
 
 ## Ownership and delegation
 
-The main agent selects the next milestone from the feature's existing tracker,
-records its acceptance criteria, assigns work, resolves disagreements against
-the design, integrates changes, and maintains the session handoff. Continue
-through authorized milestones without requiring a new user prompt for each
-handoff. Ask about material changes to intent or unresolved design choices.
+For GitHub-backed work, the harness selects and assigns issues. The main agent
+uses the issue's acceptance criteria, coordinates implementation, resolves
+disagreements against the design, and integrates changes. Put durable task
+discoveries and blockers on the issue; keep execution-attempt state in the
+harness. Continue through authorized work without requiring a new user prompt
+for each handoff. Ask about material changes to intent or unresolved design
+choices. Follow the
+[github-task-workflow skill](../.agents/skills/github-task-workflow/SKILL.md)
+for the issue lifecycle.
 
 Use specialists where a separate context adds value:
 
@@ -46,9 +50,10 @@ agent checks the artifacts and evidence before accepting completion.
 
 ## Design, tests, and implementation
 
-1. Resolve the milestone's public contract and invariants in its design
-   document. A design reviewer is useful for reflection semantics, inheritance
-   precedence, instruction encoding, or hardware-block boundaries.
+1. Resolve the issue's public contract and invariants, using the design
+   document for technical context. A design reviewer is useful for reflection
+   semantics, inheritance precedence, instruction encoding, or hardware-block
+   boundaries.
 2. Derive acceptance cases from that contract. For behavior changes, write a
    focused failing test before the implementation where practical. Confirm
    that it fails for the intended missing behavior; a broken toolchain or
@@ -70,9 +75,9 @@ annotations, modules, and `import std` work together.
 
 ## Shared workspace and verification
 
-Assign one writer per file at a time, including CMake registration and the
-tracker. Reviewers inspect a stable milestone snapshot; if it changes during
-review, identify the changes that need another look.
+Assign one writer per file at a time, including CMake registration. Reviewers
+inspect a stable implementation snapshot; if it changes during review, identify
+the changes that need another look.
 
 Assign one owner for commands that mutate a shared build directory or install
 dependencies. Avoid concurrent configure, build, or formatting
@@ -90,16 +95,15 @@ documented exception.
 
 ## Durable progress and workflow improvement
 
-Keep one checkpoint in the feature's existing design or task document. Include
-the active milestone, accepted decisions, completed work, exact verification
-results, blockers, and next action. Update it after integration and before a
-session handoff. On resumption, reconcile it with the working tree, including
-untracked files. Delegate concise briefs from that state rather than copying
-the entire conversation into each task.
+Use the GitHub Issue for concise durable decisions or blockers and the PR for
+implementation and verification evidence. Keep temporary run details in the
+harness. On resumption, read the issue and PR, then reconcile them with the
+working tree, including untracked files. Delegate concise briefs from that
+state rather than copying the entire conversation into each task.
 
 The main agent also tracks workflow friction: repeated investigation, missed
 requirements, conflicting edits, and unnecessary check runs. Record actionable
-lessons in the checkpoint. Change durable guidance when a recurring problem
-justifies it; remove obsolete advice as the project changes. After the first
-few milestones, assess whether delegation reduced rework and interruptions
+lessons in the issue or PR when useful. Change durable guidance when a recurring
+problem justifies it; remove obsolete advice as the project changes. After the
+first few milestones, assess whether delegation reduced rework and interruptions
 enough to justify its time and context cost.
